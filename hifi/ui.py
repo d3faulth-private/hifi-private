@@ -10,6 +10,7 @@ from . import __version__, access, adapters, catalog, discovery
 from .advisor import local_explanation, suggest, recommended_commands
 from .demo import HELP
 from .models import Scope, clean
+from . import selected as selected_workflows
 
 
 class UI:
@@ -217,7 +218,7 @@ class UI:
         self.app.session.scope = Scope(values[0], values[1], int(values[2]), int(values[3])).validate()
         self.app.store.save(self.app.session)
 
-    def background(self, title, action, cancellable=True):
+    def background(self, title, action, cancellable=True, context="", adapter_state=None):
         stop = threading.Event()
         output = deque(maxlen=240)
         result, errors = [], []
@@ -229,14 +230,20 @@ class UI:
             except Exception as exc:
                 errors.append(str(exc))
         thread = threading.Thread(target=target, daemon=False)
+        started = time.monotonic()
         thread.start()
         self.screen.timeout(100)
         try:
             while thread.is_alive():
                 h, w = self.frame(title, "ESC stops the running command and its children" if cancellable else "Waiting for local model / network timeout 45 seconds")
-                self.put(7, 4, "STOPPING / RESTORING ADAPTER IF NEEDED..." if stop.is_set() else "RUNNING...", 4)
-                for i, line in enumerate(list(output)[-max(1, h - 16):]):
-                    self.put(9 + i, 4, line)
+                if context:
+                    self.put(7, 4, context, 2)
+                if adapter_state:
+                    interface, mode = adapter_state()
+                    self.put(h - 5, 4, f"ADAPTER  {interface} / {mode} | CHANNEL {self.app.session.scope.channel}", 2)
+                self.put(8 if context else 7, 4, "STOPPING / RESTORING ADAPTER IF NEEDED..." if stop.is_set() else f"RUNNING / {int(time.monotonic() - started)}s", 4)
+                for i, line in enumerate(list(output)[-max(1, h - (17 if context else 16)):]):
+                    self.put((10 if context else 9) + i, 4, line)
                 self.screen.refresh()
                 if self.screen.getch() == 27 and cancellable:
                     stop.set()
@@ -334,6 +341,9 @@ class UI:
                     self.view("ADAPTER / " + record["status"].upper(), record["output"])
 
     def engine(self):
+        if self.app.session.selected_network:
+            self.network_actions(discovery.Network(**self.app.session.selected_network))
+            return
         while True:
             mode = self.menu("HIFI Exploit", ["Full HIFI Exploit / all bundled features",
                              "HIFI engine help / all options", "HIFI working directory",
@@ -517,6 +527,81 @@ class UI:
                 "Observed clients are not a complete router client list.")
         self.view("SELECTED NETWORK / " + network.name, text)
 
+    def network_actions(self, network):
+        while True:
+            choice = self.menu("NETWORK ACTIONS / " + network.name,
+                               ["WPA/WPA2 password Exploit", "WPS PIN / Pixie-Dust Exploit", "Network details",
+                                "Exploit settings", "Last result for this network", "Back"],
+                               ["Capture a handshake and check your wordlist.", "Run WPS workflows if the engine observes usable WPS.",
+                                "BSSID, security, channel, signal and observed clients.",
+                                "Wordlist, overall time limit and WPA disconnect behavior.",
+                                "Read recorded evidence and the adapter restoration result.", "Return to the network table."])
+            if choice in (None, 5):
+                return
+            try:
+                if choice in (0, 1):
+                    self.run_selected_network(network, "wpa" if choice == 0 else "wps")
+                elif choice == 2:
+                    self.network_details(network)
+                elif choice == 3:
+                    self.exploit_settings()
+                else:
+                    record = next((r for r in reversed(self.app.session.records)
+                                   if r.get("selected_target", {}).get("bssid") == network.bssid), None)
+                    self.view("SELECTED NETWORK RESULT", selected_workflows.result_text(record) if record else "No workflow has run for this selected network.")
+            except (ValueError, OSError, TypeError, KeyError) as exc:
+                self.view("WORKFLOW NOT READY", str(exc))
+
+    def exploit_settings(self):
+        settings = self.app.session.exploit_settings
+        while True:
+            n = self.menu("EXPLOIT SETTINGS", ["Wordlist: " + (settings["wordlist"] or "choose when starting WPA"),
+                          f"Overall time limit: {settings['seconds']} seconds",
+                          "WPA client disconnects: " + ("allowed" if settings["deauth"] else "off / passive capture"), "Back"])
+            if n in (None, 3):
+                return
+            if n == 0:
+                value = self.prompt("Local uncompressed wordlist path", settings["wordlist"])
+                if value is not None:
+                    settings["wordlist"] = value
+            elif n == 1:
+                value = self.prompt("Overall runtime in seconds (30–86400)", settings["seconds"])
+                if value is not None:
+                    seconds = int(value)
+                    if not 30 <= seconds <= 86400:
+                        raise ValueError("Choose 30–86400 seconds.")
+                    settings["seconds"] = seconds
+            else:
+                settings["deauth"] = not settings["deauth"]
+            self.app.store.save(self.app.session)
+
+    def run_selected_network(self, network, kind):
+        settings = self.app.session.exploit_settings
+        if kind == "wpa" and not settings["wordlist"]:
+            default = "demo-wordlist.txt" if self.app.session.demo else selected_workflows.wordlist_default()
+            value = self.prompt("Choose a local text wordlist for password recovery", default)
+            if not value:
+                return
+            settings["wordlist"] = value
+            self.app.store.save(self.app.session)
+        job = selected_workflows.Job(self.app, network, kind)
+        job.readiness()
+        detail = (f"NETWORK   {network.name}\nBSSID     {job.scope.bssid}\nADAPTER   {job.scope.interface}\nCHANNEL   {job.scope.channel}\n"
+                  f"WORKFLOW  {job.command.title}\nTIME LIMIT  {job.command.timeout} seconds (whole attempt)\n\n"
+                  f"{job.command.effect}\n" +
+                  (f"Wordlist: {settings['wordlist']}\n" if kind == "wpa" else
+                   "WPS availability and lock state are checked by the engine. Unknown does not mean enabled.\n") +
+                  "\nThe adapter is temporarily put in monitor mode, then restored.\n"
+                  "\nCOMMAND\n" + shlex.join(job.command.argv) +
+                  "\n\nENTER runs this workflow. ESC returns to network actions.")
+        if not self.view("RUN SELECTED NETWORK WORKFLOW", detail):
+            return
+        record = self.background(job.command.title, job.execute,
+                                 context=f"{network.name} / {job.scope.bssid} / CH {job.scope.channel}",
+                                 adapter_state=lambda: (job.scope.interface, job.mode))
+        self.refresh_adapters()
+        self.view("SELECTED NETWORK RESULT", selected_workflows.result_text(record))
+
     def network_table(self, live=False):
         session = self.app.session
         rows = [discovery.Network(**row) for row in session.networks]
@@ -641,7 +726,7 @@ class UI:
             if scan:
                 chosen = next((row for row in scan.snapshot()[0] if row.bssid == chosen.bssid), chosen)
             discovery.select(self.app, chosen)
-            self.network_details(chosen)
+            self.network_actions(chosen)
             return "saved"
         return next_action
 

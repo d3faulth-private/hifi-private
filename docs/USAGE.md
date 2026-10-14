@@ -1,4 +1,4 @@
-# Hidden-network discovery (0.4.3)
+# Hidden-network discovery (0.4.4)
 
 Start HIFI with root access and choose **01 Scan Wi-Fi** (or press Enter).
 One connected adapter is selected automatically. With multiple adapters, choose one
@@ -12,7 +12,14 @@ cannot guarantee learning every hidden name.
 
 Use arrows or a row number and Enter to select. HIFI stops the scan, attempts
 adapter restoration and saves interface/BSSID/channel into the session scope.
-Network details show available security, timestamps, signal and client observations.
+Selection opens **Network Actions**. Choose **01 WPA/WPA2 password Exploit** or
+**02 WPS PIN / Pixie-Dust Exploit**; the adapter, BSSID and channel are preserved.
+WPA asks for a local wordlist. Review the command and press Enter to start.
+Live output stays inside HIFI; Escape stops the attempt and restores the adapter.
+**03 Network details** shows security, timestamps, signal and client observations.
+**04 Exploit settings** controls the 600-second default overall limit, wordlist
+and WPA client disconnects. Results distinguish a recovered password/PIN from
+no recovery, timeout, cancellation and process errors.
 Press **S** to stop while keeping the table open, **/** to filter, or Escape to
 return. **R** retries immediately; **O** opens optional settings, including bands
 and scan duration. Both stop and restore an active scan before continuing.
@@ -28,8 +35,10 @@ observation, not proof that no access point exists. Verify USB
 passthrough, band support and signal range. Recovery failure is recorded in
 history; inspect the adapter and use menu **02** to restore normal Wi-Fi.
 
-Discovery manages its temporary monitor mode. The older capture-only and Full
-Exploit paths retain their existing behavior, described below.
+Discovery and the selected-network action path manage temporary monitor mode.
+The older manual capture-only and advanced Full Exploit paths retain their
+existing behavior, described below. The selected-network actions do not inherit
+advanced arguments or automatically switch to a different target.
 
 # HIFI usage
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.4 — selected-network WPA/WPS integration
+
+- Open Network Actions after discovery selection; connect WPA/WPA2 wordlist and WPS PIN/Pixie-Dust workflows to that exact adapter, BSSID and channel.
+- Prepare monitor mode for each attempt, stream output inside the D3FAULTH frame, and restore adapter state on completion/cancellation/failure.
+- Add dependency/wordlist readiness, a reviewed command, configurable overall runtime and WPA client-disconnect behavior.
+- Require fresh matching structured evidence before reporting a recovered password or PIN; distinguish PIN-only results, no recovery, errors and restoration problems.
+- Keep recovered credentials, selected targets and wordlist paths out of summary exports.
+- Verify selected workflow routing and terminal navigation with synthetic fixtures. Live Kali password/PIN recovery remains unverified.
+
 ## 0.4.3 — direct scanning and visible failures
 
 - Make Scan Wi-Fi the first/default action; open the live table directly and select the sole connected adapter automatically.

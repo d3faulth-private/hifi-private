@@ -66,6 +66,7 @@ class Session:
     clients: list[dict] = field(default_factory=list)
     selected_network: dict = field(default_factory=dict)
     discovery_settings: dict = field(default_factory=lambda: {"seconds": 30, "band": "abg"})
+    exploit_settings: dict = field(default_factory=lambda: {"seconds": 600, "wordlist": "", "deauth": True})
 
     def to_dict(self):
         return {"schema": 1, **asdict(self)}
@@ -83,4 +84,5 @@ class Session:
                    engine_workdir=data.get("engine_workdir", data.get("wifite_workdir", "")),
                    networks=data.get("networks", []), clients=data.get("clients", []),
                    selected_network=data.get("selected_network", {}),
-                   discovery_settings={"seconds": 30, "band": "abg", **data.get("discovery_settings", {})})
+                   discovery_settings={"seconds": 30, "band": "abg", **data.get("discovery_settings", {})},
+                   exploit_settings={"seconds": 600, "wordlist": "", "deauth": True, **data.get("exploit_settings", {})})

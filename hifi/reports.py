@@ -18,7 +18,8 @@ def report_data(session, include_sensitive=False):
         data["networks"] = []
         data["clients"] = []
         data["selected_network"] = {}
-        data["records"] = [{k: v for k, v in r.items() if k not in {"argv", "output", "cwd", "steps"}}
+        data["exploit_settings"]["wordlist"] = "[omitted]"
+        data["records"] = [{k: v for k, v in r.items() if k not in {"argv", "output", "cwd", "steps", "recovery", "selected_target"}}
                            for r in data["records"]]
     return data
 

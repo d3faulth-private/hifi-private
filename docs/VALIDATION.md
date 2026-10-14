@@ -1,6 +1,6 @@
-# Validation status — 0.4.3
+# Validation status — 0.4.4
 
-The software suite currently contains **75 tests**, using synthetic data, mocks
+The software suite currently contains **87 tests**, using synthetic data, mocks
 and real local subprocesses. No case targets a wireless network.
 
 Install the development dependencies with `python -m pip install '.[test]'`,
@@ -8,6 +8,11 @@ then run `python -m unittest discover -s tests -v`. The discovery terminal check
 uses a VT screen model so curses' incremental redraws are interpreted correctly.
 
 Coverage includes:
+
+- Selected-network argument routing checked against the bundled argument parser; saved advanced arguments cannot redirect the selected workflow.
+- Real fixture child processes stream progress, write matching or mismatched result files, exit with failures, and cancel; adapter restoration is mocked.
+- Exit zero and printed recovery text alone do not report success. Fresh structured evidence, PIN-only results, restoration failures and summary privacy are checked.
+- A real PTY navigates from scan to network actions through both WPA and WPS demo workflows, result pages, and menu 04, retaining the D3FAULTH frame.
 
 - Hidden AP detection, later observed-name updates, comma-containing names, unknown signal, partial CSV rows, client association and stable discovery ordering.
 - Real fixture subprocesses writing changing scan CSV data, exiting with errors, producing an empty header, or producing no CSV; no radio hardware is involved.
@@ -43,12 +48,17 @@ select the adapter, scan a lab AP with hidden SSID, verify BSSID/channel/signal,
 connect a lab client normally and check whether the name becomes observable,
 then select/stop and inspect adapter mode and NetworkManager ownership. Also
 check unplugging the adapter and stopping a scan. No SSID recovery is guaranteed.
-This update covers 2.4/5 GHz passive discovery only; no 6 GHz profile or new
-disruptive, Bluetooth or MITM operation has been added.
+Discovery covers 2.4/5 GHz. The new selected-network entry connects existing
+WPA/WPA2 and WPS workflows to the branded interface. Its WPA profile may send
+deauthentication frames when enabled in the reviewed settings; WPS sends active
+WPS requests. Verify each path only on a lab network you control, including
+backend readiness, cancellation, result files and restoration. Bluetooth, MITM,
+jamming and 6 GHz integration are outside this update.
 
 The inherited explicit-interface (`-i`) engine path assumes an already prepared
 interface. Automatic adapter selection handles monitor setup; the explicit path
-has not been corrected in this terminal/recovery update. Select an existing
+is handled by the new selected-network adapter lease; the direct advanced
+engine path still retains that assumption. Select an existing
 monitor interface for bounded engine capture profiles.
 
 Record OS/kernel, adapter chipset/driver, backend versions, channel and interface

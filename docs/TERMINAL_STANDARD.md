@@ -23,7 +23,7 @@ own features and command names. This document does not change other repositories
 | 01 | Scan Wi-Fi | Direct live discovery, hidden networks, selection, retry, optional settings |
 | 02 | Network Adapter | Select, restart, managed-mode restoration, refresh, details, diagnostics |
 | 03 | Dashboard | Overview, session scope, guided steps, optional local explanation |
-| 04 | Exploit | Existing engine menu and options |
+| 04 | Exploit | Selected-network WPA/WPA2 and WPS actions; advanced engine when no network is selected |
 | 05 | Manual Commands | Editable diagnostic, interface, cached-network, file and engine profiles |
 | 06 | Sessions & Reports | History, notes, exports, resume instructions |
 | 07 | Settings & Help | Dependencies, keyboard controls, CLI reference, about |

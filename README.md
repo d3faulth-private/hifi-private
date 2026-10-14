@@ -1,7 +1,7 @@
 <div align="center">
   <img src="docs/assets/banner.svg" alt="D3FAULTH / HIFI — Wireless Control" width="100%">
   <p><strong>An interactive wireless Exploit toolkit with an integrated engine.</strong></p>
-  <p>Python 3.10+ · Linux · GPL-2.0-only · 0.4.3 alpha</p>
+  <p>Python 3.10+ · Linux · GPL-2.0-only · 0.4.4 alpha</p>
 </div>
 
 **HIFI is the application.** Run `hifi` for its terminal menus, command editor,
@@ -76,7 +76,7 @@ adapter, last-read mode, session and command count.
 | 01 | Scan Wi-Fi: start live discovery, including hidden networks |
 | 02 | Network Adapter: selection, diagnostics, restart and recovery |
 | 03 | Dashboard: session scope, overview and guidance |
-| 04 | Exploit: existing engine workflows |
+| 04 | Exploit: actions for the selected network; advanced engine when none is selected |
 | 05 | Manual Commands: choose a profile and edit its arguments |
 | 06 | Sessions & Reports: history, notes and exports |
 | 07 | Settings & Help: dependencies, keyboard and CLI reference |
@@ -99,7 +99,8 @@ It does not read NetworkManager's old network cache.
 The table shows a stable row number, network name or **[Hidden]**, BSSID/MAC,
 channel, driver-reported RSSI, security and observed client count. Press Enter
 on a row (or type its number and Enter) to stop scanning, restore the adapter,
-save that network's BSSID/channel in the session scope and open its details.
+save that network's BSSID/channel in the session scope and open **Network Actions**.
+Choose **03 Network details** to inspect the observation.
 Details include cipher, authentication, derived frequency, timestamps, packet
 counts and observed client MACs. WPS remains **Unknown** because the CSV source
 does not report it. Signal is not falsely converted to percent or labelled dBm
@@ -133,6 +134,54 @@ Requires root, `iw`, `ip` and `airodump-ng`; `nmcli` is used when NetworkManager
 owns the selected device. The demo contains explicitly synthetic visible and
 hidden networks and runs no radio commands. 6 GHz discovery is not supported by
 this scan profile. Physical RTL8814AU/VMware validation remains pending.
+
+## Selected-network Exploit workflow
+
+**01 Scan Wi-Fi → choose a network → Network Actions** is the primary path.
+The selected adapter, BSSID and channel carry into each workflow. **04 Exploit**
+also reopens actions for the currently selected network.
+
+| Network action | Behavior |
+| --- | --- |
+| 01 WPA/WPA2 password Exploit | Ask for a local text wordlist, capture a handshake and run the existing password-recovery workflow |
+| 02 WPS PIN / Pixie-Dust Exploit | Run the existing WPS workflows when the engine observes usable WPS |
+| 03 Network details | Show the selected observation and clients |
+| 04 Exploit settings | Choose wordlist, overall time limit and WPA client-disconnect behavior |
+| 05 Last result | Show this network's last attempt and recovery evidence |
+| 00 Back | Return to the network table |
+
+![Selected-network actions inside HIFI, with synthetic demo data](docs/assets/terminal-network-actions.png)
+
+Each attempt has a command preview. Enter starts it; Escape returns. During an
+attempt, the D3FAULTH frame stays visible with the selected network, adapter
+mode, elapsed time and live engine output. Escape stops the process group and
+attempts adapter restoration. Completion returns to a result page and then
+Network Actions; this path does not hand the terminal over to the engine.
+
+The default overall time limit is **600 seconds**, adjustable from 30 to 86400.
+WPA client disconnects are allowed by default and stated in the preview; switch
+them off in Exploit settings for passive capture. WPS uses active WPS requests
+and does not enable deauthentication in this profile. Neither workflow selects
+additional BSSIDs or inherits arguments saved in the advanced engine editor.
+
+WPA/WPA2 needs a readable, uncompressed wordlist, plus `aircrack-ng`, `iw`,
+`iproute2`, `tshark`, `hashcat` and `hcxtools`. WPS needs `aircrack-ng`, `iw`,
+`iproute2`, `tshark`, `pixiewps`, and `reaver` or `bully`. Backend binaries,
+drivers and Hashcat compute support must work on the host. Missing tools are
+reported before monitor-mode changes. WPA3, enterprise, open and unknown
+security types are rejected by these two selected-network profiles.
+
+**A successful process exit is not reported as password recovery.** Each attempt
+uses a fresh private directory; a recovered password or PIN must appear in that
+attempt's structured result for the selected BSSID and workflow. PIN-only
+results explicitly say the password was not recovered. Errors, time limits,
+cancellation and restoration failures remain visible. Summary exports omit
+credentials and target details; full private exports include them.
+
+The discovery table's **WPS: Unknown** remains an observation limitation. It does
+not mean WPS is enabled; the engine checks available WPS evidence when it runs.
+Live password/PIN recovery and Hashcat compute compatibility on the user's Kali
+VM remain unverified. Demo actions are clearly simulated and never claim recovery.
 
 ## Restart and restore the adapter
 

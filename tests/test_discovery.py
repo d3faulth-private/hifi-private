@@ -291,8 +291,12 @@ class DiscoveryTerminalTests(unittest.TestCase):
                 os.write(master, b"\n")  # Default action starts scanning directly.
                 wait("[Hidden]")
                 os.write(master, b"02\n")
+                wait("NETWORK ACTIONS / [Hidden]")
+                os.write(master, b"03\n")
                 wait("SELECTED NETWORK / [Hidden]")
                 os.write(master, b"\n")
+                wait("NETWORK ACTIONS / [Hidden]")
+                os.write(master, b"00\n")
                 wait("SAVED")
                 os.write(master, b"r")
                 wait("SCAN COMPLETE")
