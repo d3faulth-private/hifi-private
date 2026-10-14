@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" role="img" aria-label="D3FAULTH HIFI wireless Exploit workbench">
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#080d12"/><stop offset="1" stop-color="#122133"/></linearGradient><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#21384a" stroke-width=".6"/></pattern></defs>
+<rect width="1280" height="360" rx="18" fill="url(#bg)"/><rect width="1280" height="360" rx="18" fill="url(#grid)" opacity=".45"/>
+<path d="M925 230a120 120 0 0 1 240 0M958 230a87 87 0 0 1 174 0M992 230a53 53 0 0 1 106 0" fill="none" stroke="#60eeb2" stroke-width="8" opacity=".9"/>
+<circle cx="1045" cy="231" r="12" fill="#60eeb2"/><path d="M1045 252v44" stroke="#60eeb2" stroke-width="5"/>
+<text x="65" y="63" fill="#6cefc1" font-family="monospace" font-size="20" letter-spacing="5">D3FAULTH / WIRELESS WORKBENCH</text>
+<text x="60" y="222" fill="#eef4fa" font-family="sans-serif" font-weight="800" font-size="154" letter-spacing="12">HI<tspan fill="#60eeb2">FI</tspan></text>
+<text x="68" y="279" fill="#bacad8" font-family="monospace" font-size="24" letter-spacing="2">INSPECT. UNDERSTAND. EXPLOIT.</text>
+<text x="68" y="323" fill="#6f8a9f" font-family="monospace" font-size="15">MANUAL CONTROL + GUIDED WORKFLOWS + LOCAL EVIDENCE</text></svg>

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "d3faulth-hifi"
+version = "0.3.0"
+description = "An interactive wireless Exploit workbench by D3FAULTH"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "GPL-2.0-only"}
+authors = [{name = "D3FAULTH"}]
+dependencies = ["chardet>=5.2", "requests>=2.32"]
+classifiers = ["Development Status :: 3 - Alpha", "Environment :: Console :: Curses", "Operating System :: POSIX :: Linux", "Programming Language :: Python :: 3"]
+
+[project.scripts]
+hifi = "hifi.cli:main"
+
+[tool.setuptools]
+license-files = ["LICENSE", "LICENSES/HIFI-MIT.txt", "CREDITS.md"]
+
+[tool.setuptools.packages.find]
+include = ["hifi*"]
+
+[tool.setuptools.package-data]
+"hifi.engine" = ["UPSTREAM.json"]

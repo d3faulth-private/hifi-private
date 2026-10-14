@@ -1,0 +1,244 @@
+{
+  "project": "Wifite2",
+  "repository": "https://github.com/kimocoder/wifite2",
+  "tag": "2.8.2",
+  "commit": "d88ed4a5a1764fab93c60b51c7d9baa186bc8757",
+  "license": "GPL-2.0-only",
+  "files": [
+    {
+      "upstream_path": "wifite/__init__.py",
+      "bundled_path": "hifi/engine/__init__.py",
+      "upstream_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "upstream_path": "wifite/args.py",
+      "bundled_path": "hifi/engine/args.py",
+      "upstream_git_blob": "ae59440cc1eff44a2aed591be855b4f36441117a"
+    },
+    {
+      "upstream_path": "wifite/attack/__init__.py",
+      "bundled_path": "hifi/engine/attack/__init__.py",
+      "upstream_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "upstream_path": "wifite/attack/all.py",
+      "bundled_path": "hifi/engine/attack/all.py",
+      "upstream_git_blob": "3cf09d7373791214896313c7242532383f38e6f0"
+    },
+    {
+      "upstream_path": "wifite/attack/pmkid.py",
+      "bundled_path": "hifi/engine/attack/pmkid.py",
+      "upstream_git_blob": "1f83835b2b42e0934deeddf592f92b0fecc2c6ef"
+    },
+    {
+      "upstream_path": "wifite/attack/wep.py",
+      "bundled_path": "hifi/engine/attack/wep.py",
+      "upstream_git_blob": "0614b9277984846afa17cafae5b6ccef3bcbf4cd"
+    },
+    {
+      "upstream_path": "wifite/attack/wpa.py",
+      "bundled_path": "hifi/engine/attack/wpa.py",
+      "upstream_git_blob": "147be819cc1e66306c405db5af4748dd9ad0939b"
+    },
+    {
+      "upstream_path": "wifite/attack/wps.py",
+      "bundled_path": "hifi/engine/attack/wps.py",
+      "upstream_git_blob": "b2dcf0570c98d04e7e51b0f138b30771de1f2800"
+    },
+    {
+      "upstream_path": "wifite/config.py",
+      "bundled_path": "hifi/engine/config.py",
+      "upstream_git_blob": "48ef971f449f3d1f322fcc705c20d6b47cdf81e6"
+    },
+    {
+      "upstream_path": "wifite/model/__init__.py",
+      "bundled_path": "hifi/engine/model/__init__.py",
+      "upstream_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "upstream_path": "wifite/model/attack.py",
+      "bundled_path": "hifi/engine/model/attack.py",
+      "upstream_git_blob": "b8b67acc657cfb595ae1e7bcb25dcc05ea6b6613"
+    },
+    {
+      "upstream_path": "wifite/model/client.py",
+      "bundled_path": "hifi/engine/model/client.py",
+      "upstream_git_blob": "134743884a3a2821ad553c4e23100e82251391fd"
+    },
+    {
+      "upstream_path": "wifite/model/handshake.py",
+      "bundled_path": "hifi/engine/model/handshake.py",
+      "upstream_git_blob": "a9aed31d713230f6229e8ee6d586539787621fe7"
+    },
+    {
+      "upstream_path": "wifite/model/ignored_result.py",
+      "bundled_path": "hifi/engine/model/ignored_result.py",
+      "upstream_git_blob": "926d1ab85d4bdd07456ca32684eab47df11146ff"
+    },
+    {
+      "upstream_path": "wifite/model/pmkid_result.py",
+      "bundled_path": "hifi/engine/model/pmkid_result.py",
+      "upstream_git_blob": "23929fae45e2e7b3886985336fbbe45046725cac"
+    },
+    {
+      "upstream_path": "wifite/model/result.py",
+      "bundled_path": "hifi/engine/model/result.py",
+      "upstream_git_blob": "8d2ee6383710dd084996208a7996672aea8662ef"
+    },
+    {
+      "upstream_path": "wifite/model/target.py",
+      "bundled_path": "hifi/engine/model/target.py",
+      "upstream_git_blob": "0ec3bd01ca84b2dff105d23b4b9a4ac3437ac836"
+    },
+    {
+      "upstream_path": "wifite/model/wep_result.py",
+      "bundled_path": "hifi/engine/model/wep_result.py",
+      "upstream_git_blob": "51ab4f281d675072cccfe0976859aa084c129b1a"
+    },
+    {
+      "upstream_path": "wifite/model/wpa_result.py",
+      "bundled_path": "hifi/engine/model/wpa_result.py",
+      "upstream_git_blob": "b8eb20123d42154bc5e06d380cd0487be9446f1c"
+    },
+    {
+      "upstream_path": "wifite/model/wps_result.py",
+      "bundled_path": "hifi/engine/model/wps_result.py",
+      "upstream_git_blob": "08bb3450e8c695568ffaa6fff520332fe4f80e93"
+    },
+    {
+      "upstream_path": "wifite/tools/__init__.py",
+      "bundled_path": "hifi/engine/tools/__init__.py",
+      "upstream_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "upstream_path": "wifite/tools/aircrack.py",
+      "bundled_path": "hifi/engine/tools/aircrack.py",
+      "upstream_git_blob": "22f802ff715c637d3a4a4eee18658a0bc1174a5f"
+    },
+    {
+      "upstream_path": "wifite/tools/aireplay.py",
+      "bundled_path": "hifi/engine/tools/aireplay.py",
+      "upstream_git_blob": "b728165369c84862304e3e190eea185740208498"
+    },
+    {
+      "upstream_path": "wifite/tools/airmon.py",
+      "bundled_path": "hifi/engine/tools/airmon.py",
+      "upstream_git_blob": "3cb97420809c6e43b9d55bcdaff73378f04c9d8b"
+    },
+    {
+      "upstream_path": "wifite/tools/airodump.py",
+      "bundled_path": "hifi/engine/tools/airodump.py",
+      "upstream_git_blob": "f2db2412e378f2c0aaf50389cbbed2daf43312e2"
+    },
+    {
+      "upstream_path": "wifite/tools/bully.py",
+      "bundled_path": "hifi/engine/tools/bully.py",
+      "upstream_git_blob": "8390e1f55acea4a0d525c946d1ef083564dd7099"
+    },
+    {
+      "upstream_path": "wifite/tools/cowpatty.py",
+      "bundled_path": "hifi/engine/tools/cowpatty.py",
+      "upstream_git_blob": "5b5fad2a734cd30767e989ff4f66efdc3fed1960"
+    },
+    {
+      "upstream_path": "wifite/tools/dependency.py",
+      "bundled_path": "hifi/engine/tools/dependency.py",
+      "upstream_git_blob": "3fd76eb97e266523f1b9195c16629317cc8e0219"
+    },
+    {
+      "upstream_path": "wifite/tools/hashcat.py",
+      "bundled_path": "hifi/engine/tools/hashcat.py",
+      "upstream_git_blob": "0b3015c94f3bb5ac95cf93ec34ff64104625a810"
+    },
+    {
+      "upstream_path": "wifite/tools/hostapd.py",
+      "bundled_path": "hifi/engine/tools/hostapd.py",
+      "upstream_git_blob": "ee97062dae80fdf5efca39ceb88155689c3a5c74"
+    },
+    {
+      "upstream_path": "wifite/tools/ip.py",
+      "bundled_path": "hifi/engine/tools/ip.py",
+      "upstream_git_blob": "be6de7f4b2c8b40b388ce63e592f8301ce4e18db"
+    },
+    {
+      "upstream_path": "wifite/tools/iw.py",
+      "bundled_path": "hifi/engine/tools/iw.py",
+      "upstream_git_blob": "172b71e18b3115b9e8663228be313bf2bf88d733"
+    },
+    {
+      "upstream_path": "wifite/tools/john.py",
+      "bundled_path": "hifi/engine/tools/john.py",
+      "upstream_git_blob": "84004979cbd35e3997f4b005e039ac5b3bef2b15"
+    },
+    {
+      "upstream_path": "wifite/tools/macchanger.py",
+      "bundled_path": "hifi/engine/tools/macchanger.py",
+      "upstream_git_blob": "33b63649b6dd9eef6d91cc43804dfaa76babfda9"
+    },
+    {
+      "upstream_path": "wifite/tools/reaver.py",
+      "bundled_path": "hifi/engine/tools/reaver.py",
+      "upstream_git_blob": "03fd84e5053e9dfb36e5fb6eb0b84d75225ac9d2"
+    },
+    {
+      "upstream_path": "wifite/tools/tshark.py",
+      "bundled_path": "hifi/engine/tools/tshark.py",
+      "upstream_git_blob": "360fcea447f0d2678d2fcadd76525921ab477286"
+    },
+    {
+      "upstream_path": "wifite/tools/wash.py",
+      "bundled_path": "hifi/engine/tools/wash.py",
+      "upstream_git_blob": "8ff90220969f6b38d5872f2538e6891eeab2de16"
+    },
+    {
+      "upstream_path": "wifite/util/__init__.py",
+      "bundled_path": "hifi/engine/util/__init__.py",
+      "upstream_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "upstream_path": "wifite/util/color.py",
+      "bundled_path": "hifi/engine/util/color.py",
+      "upstream_git_blob": "464438e2fe2cec2d2b0dd4554513a6cc97fc94f0"
+    },
+    {
+      "upstream_path": "wifite/util/crack.py",
+      "bundled_path": "hifi/engine/util/crack.py",
+      "upstream_git_blob": "bffe1034048989428e8d1c84c2ae47ed993b8527"
+    },
+    {
+      "upstream_path": "wifite/util/dbupdater.py",
+      "bundled_path": "hifi/engine/util/dbupdater.py",
+      "upstream_git_blob": "fd8b5c385e2bb4ff981ce557d7579d15aafb224e"
+    },
+    {
+      "upstream_path": "wifite/util/input.py",
+      "bundled_path": "hifi/engine/util/input.py",
+      "upstream_git_blob": "bd4fd1eca4effa236e448691923fd53ba59dae75"
+    },
+    {
+      "upstream_path": "wifite/util/memory.py",
+      "bundled_path": "hifi/engine/util/memory.py",
+      "upstream_git_blob": "2001f83e1135e9f2fc89c0e6f013c610fac89452"
+    },
+    {
+      "upstream_path": "wifite/util/process.py",
+      "bundled_path": "hifi/engine/util/process.py",
+      "upstream_git_blob": "fd689fc31fd53a38a50210d5d138f5c54d7885b7"
+    },
+    {
+      "upstream_path": "wifite/util/scanner.py",
+      "bundled_path": "hifi/engine/util/scanner.py",
+      "upstream_git_blob": "fc18b6c3e840366730845ed30cfb8e260972c420"
+    },
+    {
+      "upstream_path": "wifite/util/timer.py",
+      "bundled_path": "hifi/engine/util/timer.py",
+      "upstream_git_blob": "6358a608845e72e024c53d827ca60449929ba26d"
+    },
+    {
+      "upstream_path": "wifite/wifite.py",
+      "bundled_path": "hifi/engine/core.py",
+      "upstream_git_blob": "921ebcbf947f2c1f8677a9cc74d0f2dbbb1c0e5b"
+    }
+  ]
+}

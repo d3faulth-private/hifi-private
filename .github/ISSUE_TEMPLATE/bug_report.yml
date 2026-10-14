@@ -1,0 +1,20 @@
+name: Bug report
+description: Report a reproducible HIFI issue without private network data.
+body:
+  - type: textarea
+    attributes:
+      label: Environment
+      description: HIFI version, OS, Python and relevant tool/driver versions.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps and expected behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual behavior
+      description: Include sanitized output only. Do not attach real captures or credentials.
+    validations:
+      required: true

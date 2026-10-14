@@ -1,0 +1,145 @@
+# HIFI usage
+
+## Start
+
+After installation, `hifi` opens the menus. `hifi --demo` explores them without
+running radio commands. A demo session stays simulated when reopened.
+
+```bash
+hifi
+hifi --demo
+hifi sessions
+hifi --session SESSION_ID
+```
+
+Global HIFI options go before the subcommand. `SESSION_ID` is the 12-character
+identifier printed by the program. Root and a normal user have separate default
+state directories; use the same user context to reopen a radio session.
+
+## Full HIFI Exploit
+
+Open **HIFI Exploit → Full HIFI Exploit**. Its editable command begins with
+`hifi engine`. All baseline engine arguments remain available. Read **HIFI engine
+help** for full options. The integrated engine handles scanning, selection,
+wireless methods and prompts; no separately installed engine is invoked.
+
+The CLI provides two paths:
+
+```bash
+hifi engine --help -v
+hifi exploit
+hifi exploit --run
+hifi exploit --run -- -h -v
+```
+
+`engine` is a direct entry point, using the caller's current directory and native
+engine behavior. `exploit` previews by default; `--run` executes through the
+interactive relay and records the result in HIFI. Put engine flags after `--`.
+Live radio operations need suitable privileges; help and saved-result viewing do
+not. Full Exploit mode does not use the capture-profile scope or HIFI timeout.
+
+Ctrl+C reaches the engine's current workflow; it can open a continuation menu or
+exit. Leaving the workflow returns to HIFI. Escape is only a HIFI menu control,
+not a stop shortcut inside the engine.
+
+## Files and saved arguments
+
+A new workbench session uses its private `engine` subdirectory. Reopening a
+session reuses the last executed arguments and working directory. Choose
+**HIFI working directory** for an existing workspace. Relative engine paths
+resolve there; absolute dictionary and capture paths are easiest.
+
+```bash
+hifi exploit --workdir /absolute/path/workspace --run -- --cracked
+hifi --session SESSION_ID exploit
+hifi --session SESSION_ID exploit --fresh
+```
+
+New arguments after `--` replace saved arguments. `--fresh` uses an empty argument
+list; executing it saves that reset. Previewing does not alter saved arguments.
+The menu also has **Reset saved HIFI arguments**. Old saved settings migrate to
+the new field names without changing historical evidence.
+
+The engine needs a supplied dictionary or an existing system dictionary for
+wordlist recovery. HIFI does not bundle or download a default dictionary. The
+system `ieee-data` package supplies vendor mappings; database updates are explicit.
+
+## Capture-only profiles
+
+Configure the intended lab network:
+
+```bash
+hifi scope --interface wlan0mon --bssid 02:11:22:33:44:55 --channel 6 --duration 60
+```
+
+These values are synthetic examples. The standalone passive profile requires an
+already configured monitor interface on that channel and verifies it first:
+
+```bash
+hifi --session SESSION_ID capture
+```
+
+The engine's separate capture-only profiles are:
+
+```bash
+hifi --session SESSION_ID capture-engine
+hifi --session SESSION_ID capture-engine --active
+```
+
+All three preview by default; add `--run` to execute. Capture-only engine profiles
+pin interface, BSSID and channel and disable WPS, PMKID and cracking. The passive
+profile disables deauthentication. The active profile can disconnect clients.
+The dumpcap profile has time and 50 MB limits. Bounded profiles use closed stdin;
+use Full HIFI Exploit when you need the engine's interactive prompts.
+
+## Capture analysis and offline wordlist Exploit
+
+```bash
+hifi inspect /absolute/path/capture.pcapng --view all
+hifi --session SESSION_ID offline /absolute/path/capture.pcapng --wordlist /absolute/path/words.txt
+```
+
+Inspection offers metadata, EAPOL and disconnect-frame views. The separate offline
+wordlist command previews unless `--run` is supplied and uses the session BSSID.
+The TShark editor allows display filters, fields and packet limits. Packet parsing
+is delegated to installed tools; use an unprivileged session for file analysis.
+A frame count alone does not prove a usable handshake or recovery result.
+
+## Suggestions and optional local model
+
+```bash
+hifi --session SESSION_ID suggest
+export HIFI_OLLAMA_MODEL='your-installed-local-model'
+hifi --session SESSION_ID ask 'Explain the last result'
+```
+
+Suggestions are rules based on evidence. Optional Ollama receives scope and up to
+6000 characters from each of the last three outputs via `127.0.0.1:11434`, with
+HTTP proxies disabled. Model text is not executed. The request has a 45-second
+socket timeout; the UI waits for completion. Configure a local model to avoid a
+server that forwards prompts to a cloud provider.
+
+## Reports
+
+```bash
+hifi --session SESSION_ID report --output summary.html
+hifi --session SESSION_ID report --output private.json --include-sensitive
+```
+
+Exports refuse to overwrite files. Summaries omit identifiers, commands, paths,
+notes and raw output. Full reports can contain credentials. Process status `ok`
+means exit code zero; it is not a recovery verdict. Review evidence before sharing.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| `hifi` not found | Open a new terminal after `pipx ensurepath`, or use your virtual environment's launcher |
+| Missing Python module | Install the project with pipx or pip in a virtual environment |
+| No Wi-Fi interface in VM | USB passthrough, driver support and adapter visibility |
+| Missing radio backend | Run `hifi doctor` and install the needed system package |
+| Relative file not found | Check the engine workspace or use an absolute path |
+| Exploit relay needs a terminal | Open a terminal; use `hifi engine --help` for redirected help output |
+| Invalid engine option | Read `hifi engine --help -v`; the included baseline is fixed |
+| Capture preflight fails | Verify monitor mode and channel |
+| Adapter changed after exit | Inspect `iw dev` and restore its previous state with your normal tools |
