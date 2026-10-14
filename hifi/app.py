@@ -3,7 +3,7 @@ from dataclasses import replace
 from pathlib import Path
 from threading import Event
 
-from . import catalog
+from . import access, adapters, catalog
 from .backend import engine_argv
 from .demo import simulate
 from .models import clean
@@ -18,6 +18,7 @@ class App:
         self.store.save(session)
 
     def execute(self, command, stop=None, emit=None):
+        self.preflight(command)
         # Live profiles are always validated, including generated commands.
         import shlex
         catalog.validate_edit(shlex.join(command.argv), command, self.session.scope)
@@ -35,6 +36,17 @@ class App:
         else:
             record = run(execution, self.store.folder(self.session), stop, emit)
         record["argv"] = command.argv
+        self.session.records.append(record)
+        self.store.save(self.session)
+        return record
+
+    def preflight(self, command):
+        if command.root:
+            access.require_root(self.session.demo)
+
+    def restart_adapter(self, interface, restore_managed=False, stop=None, emit=None):
+        record = adapters.restart(interface, self.store.folder(self.session), restore_managed,
+                                  self.session.demo, stop, emit)
         self.session.records.append(record)
         self.store.save(self.session)
         return record

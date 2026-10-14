@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="docs/assets/banner.svg" alt="D3FAULTH HIFI — Inspect. Understand. Exploit." width="100%">
+  <img src="docs/assets/banner.svg" alt="D3FAULTH / HIFI — Wireless Control" width="100%">
   <p><strong>An interactive wireless Exploit toolkit with an integrated engine.</strong></p>
-  <p>Python 3.10+ · Linux · GPL-2.0-only · 0.3.0 alpha</p>
+  <p>Python 3.10+ · Linux · GPL-2.0-only · 0.4.1 alpha</p>
 </div>
 
 **HIFI is the application.** Run `hifi` for its terminal menus, command editor,
@@ -16,44 +16,106 @@ modifications and inherited limitations are recorded in [credits](CREDITS.md).
 
 ## Install and run
 
-From your cloned or extracted project on Kali/Debian:
+From the cloned repository or extracted source folder on Kali/Debian:
 
 ```bash
 sudo apt install pipx
-pipx ensurepath
 pipx install .
+pipx ensurepath
 ```
 
-Open a new terminal if `pipx ensurepath` changed your PATH, then run:
+Open a new terminal, then check the installation:
 
 ```bash
-hifi
+hifi --version
+hifi doctor
+hifi adapter list
 ```
 
-For workflows that need elevated radio access, keep the installed interpreter
-by using the full launcher path:
+**For live radio operations and adapter recovery, start the menu with root access:**
 
 ```bash
 sudo "$(command -v hifi)"
 ```
 
-Alternatively, install into a virtual environment:
+The full launcher path keeps the Python environment installed by pipx. Plain
+`hifi` opens the same interface as a normal user for diagnostics, reports and
+help. The header shows the current privilege level; operations that need root
+explain the relaunch command before starting a process.
+
+To explore without changing any adapter:
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install .
-.venv/bin/hifi
+hifi --demo
 ```
 
-The package installs its Python dependencies, chardet and Requests. From the
-source folder, `python3 -m hifi --demo` explores the menus without installation,
-radio tools, network access or a model. It produces explicitly simulated output.
-An 80-column by 24-row Linux terminal is recommended.
+To update an existing pipx installation from a new source folder:
 
-The downloadable source package includes `hifi.pyz`. It bundles HIFI's Python
-source and licenses, but not third-party Python dependencies or Linux binaries.
-Its demo and help work without those dependencies; install the package for normal
-operation or make its declared dependencies available to the zipapp interpreter.
+```bash
+pipx install --force .
+```
+
+Python dependencies are installed with the package. System binaries and drivers
+remain separate; `hifi doctor` lists what is available. A supported USB Wi-Fi
+adapter must be passed through to Kali when using VMware. The source ZIP also
+includes `hifi.pyz`; its demo works without installation, while live use requires
+the declared Python dependencies and system backends.
+
+## D3FAULTH terminal
+
+![HIFI terminal running in simulated demo mode](docs/assets/terminal-main.png)
+
+The interface uses an original D3FAULTH wordmark, HIFI panel, black background,
+green selection bar, cyan status text and numbered actions. Type a number and
+press Enter, or use arrow keys and Enter. Main actions fit an 80×24 terminal.
+Smaller windows show a resize message. The status area identifies the selected
+adapter, last-read mode, session and command count.
+
+| Main menu | Action |
+| --- | --- |
+| 01 | Dashboard: session scope, overview and guidance |
+| 02 | Network Adapter: selection, diagnostics, restart and recovery |
+| 03 | Network Discovery: cached networks, passive capture and inspection |
+| 04 | Exploit: existing engine workflows |
+| 05 | Manual Commands: choose a profile and edit its arguments |
+| 06 | Sessions & Reports: history, notes and exports |
+| 07 | Settings & Help: dependencies, keyboard and CLI reference |
+| 00 | Exit and save the session |
+
+Submenus use **00 Back**. Each main selection has a short explanation; all eight
+entries fit at 80×24. See the agreed [D3FAULTH terminal standard](docs/TERMINAL_STANDARD.md).
+
+## Restart and restore the adapter
+
+Choose **02 Network Adapter → Select detected adapter**, then **Restart selected adapter**.
+HIFI previews the exact commands and affected interface. Restart brings that
+interface down and up while retaining its current wireless mode.
+
+**Restore normal Wi-Fi / managed mode** additionally returns a monitor interface
+to managed mode. Both actions interrupt that adapter's connection. HIFI verifies
+its resulting mode and administrative UP flag and records all command results.
+A link-up recovery attempt runs even after a cancelled/failed link-down or mode
+change. This is best-effort recovery; unplugged hardware, driver failures and
+forced process termination can prevent it.
+
+![HIFI adapter controls in simulated demo mode](docs/assets/terminal-adapter.png)
+
+No other adapter or NetworkManager service is restarted. Reconnect through your
+desktop network menu afterward. Link UP alone does not establish connectivity,
+and restoring managed mode does not remove additional virtual interfaces or
+restart a network service previously stopped by another workflow.
+
+Equivalent CLI previews and execution:
+
+```bash
+hifi adapter list
+hifi adapter restart --interface wlan0
+sudo "$(command -v hifi)" adapter restart --interface wlan0 --run
+sudo "$(command -v hifi)" adapter restart --interface wlan0 --restore-managed --run
+```
+
+Use an interface actually shown by `hifi adapter list`. Omitting `--run` displays
+a plan without changing the adapter. Demo mode simulates these actions.
 
 ## Included features
 
@@ -80,12 +142,12 @@ HIFI does not claim to outperform its upstream baseline.
 
 ## Terminal workflow
 
-1. Open **Adapter diagnostics** and review dependencies.
-2. Choose **HIFI Exploit → Full HIFI Exploit**.
+1. Open **02 Network Adapter → Diagnostics** and review dependencies.
+2. Choose **04 Exploit → Full HIFI Exploit**.
 3. Edit the engine command if needed, review it and run.
 4. Select targets and respond to engine prompts. Ctrl+C reaches the current
    workflow; exit it to return to the HIFI menu.
-5. Review history, inspect captures, add notes and export a report.
+5. Use **06 Sessions & Reports** for history, notes and exports. Choose **00 Exit** to save and return to the shell.
 
 HIFI menu controls: arrows or `j/k`, Enter to select, Escape or `q` to return.
 The editor supports Home/End, arrows, Backspace/Delete and Ctrl+U. Result views

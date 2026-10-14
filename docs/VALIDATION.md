@@ -1,9 +1,13 @@
-# Validation status — 0.3.0
+# Validation status — 0.4.1
 
-The software suite currently contains **46 tests**, using synthetic data, mocks
+The software suite currently contains **55 tests**, using synthetic data, mocks
 and real local subprocesses. No case targets a wireless network.
 
 Coverage includes:
+
+- Privilege checks before process handoff; unprivileged recovery cannot change interfaces.
+- Selected-interface recovery, disappearance, cancellation, failed mode changes, final-state verification and summary redaction.
+- A separate rendered PTY check for two-digit menu navigation, demo recovery, resizing, and all eight main entries visible at 80×24, consistent `00 Back`, and `00 Exit`.
 
 - Workbench command editing, scope controls and demo behavior.
 - Private atomic persistence, old-session migration and summary privacy.
@@ -21,6 +25,11 @@ release preparation. Software checks verify integration, not successful radio
 operations or password/PIN recovery.
 
 ## Physical validation still pending
+
+The inherited explicit-interface (`-i`) engine path assumes an already prepared
+interface. Automatic adapter selection handles monitor setup; the explicit path
+has not been corrected in this terminal/recovery update. Select an existing
+monitor interface for bounded engine capture profiles.
 
 Record OS/kernel, adapter chipset/driver, backend versions, channel and interface
 state before/after. Validate each WPA/WPS/PMKID/WEP workflow separately on a lab

@@ -124,8 +124,8 @@ def engine_capture(scope, help_text=None, active=False):
         argv.append(no_deauth)
     return Command("HIFI active capture" if active else "HIFI passive capture", argv,
                    "Capture for one selected BSSID. " +
-                   ("May disconnect clients to elicit authentication; HIFI manages interface mode." if active else
-                    "Deauthentication, WPS, PMKID collection and password cracking are disabled; HIFI manages interface mode."),
+                   ("May disconnect clients to elicit authentication; select an existing monitor interface." if active else
+                    "Deauthentication, WPS, PMKID collection and password cracking are disabled; select an existing monitor interface."),
                    "ACTIVE / CLIENT DISRUPTION" if active else "PASSIVE / INTERFACE CHANGES",
                    timeout=scope.duration, root=True)
 
@@ -155,6 +155,7 @@ def engine_exploit(arguments=(), workdir=None):
                    "Includes WPS, PMKID, WEP and WPA workflows. "
                    "HIFI's capture scope and time limit do not apply. Ctrl+C reaches HIFI's own menu.",
                    "NATIVE HIFI / MAY DISCONNECT CLIENTS", timeout=None,
+                   root=not any(x in {"-h", "--help", "--cracked", "--ignored", "--update-db"} for x in arguments),
                    interactive=True, cwd=str(directory))
 
 

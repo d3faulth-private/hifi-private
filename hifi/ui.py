@@ -5,7 +5,7 @@ import textwrap
 import threading
 from collections import deque
 
-from . import __version__, catalog
+from . import __version__, access, adapters, catalog
 from .advisor import local_explanation, suggest, recommended_commands
 from .demo import HELP
 from .models import Scope, clean
@@ -15,50 +15,126 @@ class UI:
     def __init__(self, screen, app):
         self.screen, self.app = screen, app
         self.screen.keypad(True)
+        self.adapter_rows = []
+        self.adapter_notice = ""
         curses.curs_set(0)
         if curses.has_colors():
             curses.start_color()
-            curses.use_default_colors()
             for i, fg in enumerate([curses.COLOR_GREEN, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW], 1):
-                curses.init_pair(i, fg, -1)
+                curses.init_pair(i, fg, curses.COLOR_BLACK)
+            curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_GREEN)
+            self.screen.bkgd(" ", curses.color_pair(3))
+        self.refresh_adapters()
+
+    def refresh_adapters(self):
+        try:
+            self.adapter_rows = adapters.discover(self.app.session.demo)
+            self.adapter_notice = "" if self.adapter_rows else "No wireless adapter detected"
+            if not self.app.session.scope.interface and len(self.adapter_rows) == 1:
+                self.app.session.scope.interface = self.adapter_rows[0].name
+                self.app.store.save(self.app.session)
+        except (ValueError, OSError) as exc:
+            self.adapter_rows = []
+            self.adapter_notice = str(exc)
+
+    def box(self, top, left, bottom, right):
+        if bottom <= top or right <= left:
+            return
+        try:
+            self.screen.addstr(top, left + 1, "─" * (right - left - 1))
+            self.screen.addstr(bottom, left + 1, "─" * (right - left - 1))
+            for y in range(top + 1, bottom):
+                self.screen.addstr(y, left, "│")
+                self.screen.addstr(y, right, "│")
+            for y, x, corner in [(top, left, "┌"), (top, right, "┐"),
+                                 (bottom, left, "└"), (bottom, right, "┘")]:
+                self.screen.addstr(y, x, corner)
+        except curses.error:
+            pass
+
+    def separator(self, y):
+        _, w = self.screen.getmaxyx()
+        try:
+            self.screen.addstr(y, 2, "─" * max(0, w - 4))
+            self.screen.addstr(y, 1, "├")
+            self.screen.addstr(y, w - 2, "┤")
+        except curses.error:
+            pass
 
     def put(self, y, x, value, color=3, bold=False):
         h, w = self.screen.getmaxyx()
         if 0 <= y < h - 1 and 0 <= x < w - 1:
             attr = (curses.color_pair(color) if curses.has_colors() else 0) | (curses.A_BOLD if bold else 0)
             try:
-                self.screen.addnstr(y, x, clean(value).replace("\n", " "), max(0, w - x - 2), attr)
+                self.screen.addnstr(y, x, clean(value).replace("\n", " "), max(0, w - x - 3), attr)
             except curses.error:
                 pass
 
-    def frame(self, title, footer="UP/DOWN select   ENTER open   ESC back"):
+    def frame(self, title, footer="NUMBER + ENTER open   UP/DOWN select   ESC back"):
         self.screen.erase()
         h, w = self.screen.getmaxyx()
-        self.put(1, 3, "D3FAULTH  /  H I F I", 1, True)
-        self.put(2, 3, f"WIRELESS WORKBENCH   v{__version__}   {'DEMO / SIMULATED' if self.app.session.demo else 'LIVE / LOCAL'}", 2)
-        self.put(4, 3, title, 3, True)
+        self.box(0, 1, h - 2, w - 2)
+        self.put(1, 4, "D3FAULTH", 1, True)
+        self.put(1, max(20, w - 18), f"HIFI  v{__version__}", 2)
+        self.put(2, 4, "H I F I   /   WIRELESS CONTROL", 3, True)
+        privilege = "DEMO / SIMULATED" if self.app.session.demo else ("ROOT / PRIVILEGED" if access.is_root() else "USER / ROOT NEEDED FOR RADIO")
+        self.put(3, 4, privilege, 2 if self.app.session.demo or access.is_root() else 4)
+        self.separator(4)
+        self.put(5, 4, title, 3, True)
         scope = self.app.session.scope
-        self.put(h - 3, 3, f"{scope.interface or 'no interface'}  |  {scope.bssid or 'no BSSID'}  |  ch {scope.channel or '-'}  |  {scope.duration}s", 2)
-        self.put(h - 2, 3, footer, 4)
+        selected = next((a for a in self.adapter_rows if a.name == scope.interface), None)
+        mode = selected.mode if selected else "not detected"
+        self.separator(h - 6)
+        self.put(h - 5, 4, f"ADAPTER  {scope.interface or 'not selected'}  /  {mode}  |  CHANNEL  {scope.channel or '-'}", 2)
+        self.put(h - 4, 4, f"SESSION  {self.app.session.id}  |  RECORDS  {len(self.app.session.records)}", 3)
+        self.put(h - 3, 4, footer, 4)
         return h, w
 
-    def menu(self, title, entries):
+    def menu(self, title, entries, descriptions=None):
         selected = 0
+        digits = ""
+        codes = list(range(1, len(entries) + 1))
+        if entries[-1] in {"Back", "Exit", "Quit"}:
+            codes[-1] = 0
+        width = max(2, len(str(max(codes))))
         while True:
-            h, w = self.frame(title)
-            visible = max(1, h - 10)
+            footer = f"OPEN NUMBER: {digits}   ENTER confirm   BACKSPACE edit" if digits else "NUMBER + ENTER open   UP/DOWN select   ESC back"
+            h, w = self.frame(title, footer)
+            visible = max(1, h - 14)
+            if h < 20 or w < 70:
+                self.put(7, 4, "Resize terminal to at least 70 x 20. ESC exits.", 4)
+                self.screen.refresh()
+                if self.screen.getch() in (27, ord("q")):
+                    return None
+                continue
             start = max(0, selected - visible + 1)
             for offset, label in enumerate(entries[start:start + visible]):
                 i = start + offset
-                self.put(6 + offset, 4, ("> " if i == selected else "  ") + label, 1 if i == selected else 3, i == selected)
+                self.put(7 + offset, 4, f" {codes[i]:0{width}d}  {label}".ljust(w - 9), 5 if i == selected else 3, i == selected)
+            if descriptions and h >= 24:
+                self.put(h - 8, 4, descriptions[selected], 2)
             self.screen.refresh()
             key = self.screen.getch()
             if key in (curses.KEY_UP, ord("k")):
+                digits = ""
                 selected = (selected - 1) % len(entries)
             elif key in (curses.KEY_DOWN, ord("j")):
+                digits = ""
                 selected = (selected + 1) % len(entries)
             elif key in (10, 13, curses.KEY_ENTER):
+                if digits:
+                    number = int(digits)
+                    digits = ""
+                    if number not in codes:
+                        continue
+                    return codes.index(number)
                 return selected
+            elif ord("0") <= key <= ord("9"):
+                digits = (digits + chr(key))[-width:]
+                if int(digits) in codes:
+                    selected = codes.index(int(digits))
+            elif key in (curses.KEY_BACKSPACE, 127, 8):
+                digits = digits[:-1]
             elif key in (27, ord("q")):
                 return None
 
@@ -69,10 +145,10 @@ class UI:
             lines = []
             for line in clean(value).expandtabs(4).splitlines():
                 lines.extend(textwrap.wrap(line, max(12, w - 8), replace_whitespace=False) or [""])
-            count = max(1, h - 10)
+            count = max(1, h - 14)
             offset = min(offset, max(0, len(lines) - count))
             for i, line in enumerate(lines[offset:offset + count]):
-                self.put(6 + i, 4, line)
+                self.put(7 + i, 4, line)
             self.screen.refresh()
             key = self.screen.getch()
             if key in (27, 10, 13, ord("q")):
@@ -157,9 +233,9 @@ class UI:
         try:
             while thread.is_alive():
                 h, w = self.frame(title, "ESC stops the running command and its children" if cancellable else "Waiting for local model / network timeout 45 seconds")
-                self.put(6, 4, "STOPPING..." if stop.is_set() else "RUNNING...", 4)
-                for i, line in enumerate(list(output)[-max(1, h - 12):]):
-                    self.put(8 + i, 4, line)
+                self.put(7, 4, "STOPPING / RESTORING ADAPTER IF NEEDED..." if stop.is_set() else "RUNNING...", 4)
+                for i, line in enumerate(list(output)[-max(1, h - 16):]):
+                    self.put(9 + i, 4, line)
                 self.screen.refresh()
                 if self.screen.getch() == 27 and cancellable:
                     stop.set()
@@ -188,6 +264,11 @@ class UI:
                     except ValueError as exc:
                         self.view("Command needs adjustment", str(exc))
             elif choice == 0:
+                try:
+                    self.app.preflight(command)
+                except PermissionError as exc:
+                    self.view("ROOT ACCESS REQUIRED", str(exc))
+                    continue
                 # Preview is part of manual operation, not a repeated approval gate.
                 if not self.view("Command preview / ENTER run, ESC cancel", f"{command.effect}\n\n{command.purpose}{location}\n\n{shlex.join(command.argv)}\n\n{timing}\nENTER starts the command. ESC cancels this preview."):
                     continue
@@ -203,7 +284,53 @@ class UI:
                 else:
                     record = self.background(command.title, lambda stop, emit: self.app.execute(command, stop, emit))
                 self.view(record["status"].upper(), record["output"] or "No output. See exit status in session history.")
+                self.refresh_adapters()
                 return
+
+    def adapter_controls(self):
+        while True:
+            self.refresh_adapters()
+            scope = self.app.session.scope
+            selected = next((a for a in self.adapter_rows if a.name == scope.interface), None)
+            label = f"{selected.name} / {selected.mode}" if selected else "choose an adapter"
+            choice = self.menu("NETWORK ADAPTER / " + label, ["Select detected adapter", "Restart selected adapter",
+                               "Restore normal Wi-Fi / managed mode", "Refresh adapter list", "Adapter details", "Diagnostics", "Back"])
+            if choice in (None, 6):
+                return
+            if choice == 0:
+                if not self.adapter_rows:
+                    self.view("NO ADAPTER DETECTED", self.adapter_notice + "\nConnect a USB Wi-Fi adapter to the Kali guest, then refresh.")
+                    continue
+                index = self.menu("SELECT NETWORK ADAPTER", [f"{a.name}  /  {a.mode}  /  {a.phy}" for a in self.adapter_rows] + ["Back"])
+                if index is not None and index < len(self.adapter_rows):
+                    scope.interface = self.adapter_rows[index].name
+                    self.app.store.save(self.app.session)
+            elif choice == 3:
+                continue
+            elif choice == 5:
+                self.diagnostics()
+            elif not selected:
+                self.view("SELECT AN ADAPTER", "Choose option 01 to select a detected wireless interface.")
+            elif choice == 4:
+                self.command(catalog.interface_info(scope))
+            else:
+                restore = choice == 2
+                try:
+                    access.require_root(self.app.session.demo)
+                except PermissionError as exc:
+                    self.view("ROOT ACCESS REQUIRED", str(exc))
+                    continue
+                plan = adapters.restart_plan(selected.name, restore)
+                detail = (f"ADAPTER     {selected.name}\nCURRENT MODE  {selected.mode}\n\n"
+                          + ("Return to managed mode and bring the interface up." if restore else "Bring this interface down and up, preserving its mode.")
+                          + "\nThis interrupts its current connection. No other adapter or network service is restarted."
+                          + "\nReconnect using your desktop network menu afterward.\n\nCOMMANDS\n"
+                          + "\n".join(f"{n:02d}  {shlex.join(c.argv)}" for n, c in enumerate(plan, 1))
+                          + "\n\nENTER runs this plan. ESC returns without changes.")
+                if self.view("RESTORE NORMAL WI-FI" if restore else "RESTART NETWORK ADAPTER", detail):
+                    record = self.background("ADAPTER RECOVERY", lambda stop, emit: self.app.restart_adapter(selected.name, restore, stop, emit))
+                    self.refresh_adapters()
+                    self.view("ADAPTER / " + record["status"].upper(), record["output"])
 
     def engine(self):
         while True:
@@ -258,71 +385,158 @@ class UI:
         if not rows:
             self.view("Session history", "No commands have run in this session.")
             return
-        choice = self.menu("Session history", [f"{r['status']:10} {r['title']}" for r in rows])
-        if choice is not None:
+        choice = self.menu("Session history", [f"{r['status']:10} {r['title']}" for r in rows] + ["Back"])
+        if choice is not None and choice < len(rows):
             r = rows[choice]
             directory = f"\nWorking directory: {r['cwd']}" if r.get("cwd") else ""
             self.view(r["title"], f"{r['started']}{directory}\n{shlex.join(r['argv'])}\n\n{r['output']}")
 
-    def main(self):
-        entries = ["Session scope / interface / BSSID", "Adapter diagnostics", "Cached network list",
-                   "Guided next steps", "Capture inspector", "Passive capture (existing monitor interface)",
-                   "HIFI Exploit", "Session history and notes", "Export session report", "Local AI explanation", "Quit"]
+    def diagnostics(self):
+        commands = catalog.diagnostics()
+        n = self.menu("ADAPTER / DIAGNOSTICS", ["Dependency status", "Run diagnostic workflow"] + [c.title for c in commands] + ["Back"])
+        if n == 0:
+            self.dependencies()
+        elif n == 1:
+            rows = self.background("Adapter diagnostic workflow", lambda stop, emit: self.app.workflow(commands, stop, emit))
+            self.view("Workflow results", "\n".join(f"{r['title']}: {r['status']}" for r in rows))
+        elif n is not None and 2 <= n < len(commands) + 2:
+            self.command(commands[n - 2])
+
+    def dependencies(self):
+        self.view("DEPENDENCIES", "\n".join(f"{r['name']:12} {r['path'] or 'MISSING'}\n  {r['purpose']}" for r in catalog.inventory()))
+
+    def guidance(self):
+        recommendations = recommended_commands(self.app.session)
+        n = self.menu("GUIDED NEXT STEPS", ["Read evidence and diagnosis"] + ["Suggested: " + c.title for _, c in recommendations] + ["Back"])
+        if n == 0:
+            self.view("Evidence and diagnosis", "\n\n".join(f"[{a}] {b}\nNext: {c}" for a, b, c in suggest(self.app.session)))
+        elif n is not None and 1 <= n <= len(recommendations):
+            reason, command = recommendations[n - 1]
+            command.purpose = reason + " " + command.purpose
+            self.command(command)
+
+    def dashboard(self):
         while True:
-            choice = self.menu("INSPECT. UNDERSTAND. EXPLOIT.", entries)
-            if choice in (None, 10):
+            choice = self.menu("DASHBOARD", ["Session overview", "Edit session scope", "Guided next steps", "Local AI explanation", "Back"])
+            if choice in (None, 4):
+                return
+            if choice == 0:
+                session, scope = self.app.session, self.app.session.scope
+                last = session.records[-1] if session.records else None
+                self.view("SESSION OVERVIEW", f"Session: {session.id}\nMode: {'Simulated demo' if session.demo else 'Live'}\n"
+                          f"Adapter: {scope.interface or 'Not selected'}\nChannel: {scope.channel or 'Unset'}\n"
+                          f"BSSID: {scope.bssid or 'Unset'}\nCapture time limit: {scope.duration}s\n"
+                          f"Completed records: {len(session.records)}\nNotes: {len(session.notes)}\n\n"
+                          + (f"Last operation: {last['title']}\nStatus: {last['status']}" if last else "No operations have run.")
+                          + "\n\nThe saved scope applies to bounded profiles. Full Exploit uses its own target selection.")
+            elif choice == 1:
+                self.scope()
+            elif choice == 2:
+                self.guidance()
+            else:
+                question = self.prompt("Ask your local model (sends recent session output to local Ollama)")
+                if question:
+                    answer = self.background("Local AI / response pending", lambda stop, emit: local_explanation(question, self.app.session), cancellable=False)
+                    self.view("Model explanation / verify against evidence", answer)
+
+    def discovery(self):
+        while True:
+            choice = self.menu("NETWORK DISCOVERY", ["View cached networks / no fresh scan", "Passive capture / existing monitor interface",
+                               "Edit capture scope", "Inspect a capture file", "Back"])
+            if choice in (None, 4):
+                return
+            if choice == 0:
+                self.command(catalog.cached_networks())
+            elif choice == 1:
+                self.command(catalog.passive_capture(self.app.session.scope, self.app.output_path("pcapng")))
+            elif choice == 2:
+                self.scope()
+            else:
+                self.capture_inspection()
+
+    def manual_commands(self):
+        while True:
+            choice = self.menu("MANUAL COMMANDS / SELECT A PROFILE", ["Diagnostic command profiles", "Selected interface details",
+                               "Cached network command", "Capture file commands", "Full HIFI command editor", "Back"])
+            if choice in (None, 5):
+                return
+            if choice == 0:
+                self.diagnostics()
+            elif choice == 1:
+                self.command(catalog.interface_info(self.app.session.scope))
+            elif choice == 2:
+                self.command(catalog.cached_networks())
+            elif choice == 3:
+                self.capture_inspection()
+            else:
+                self.command(self.app.native_engine())
+
+    def sessions_reports(self):
+        while True:
+            choice = self.menu("SESSIONS & REPORTS", ["Command history", "Add a note", "View notes", "Export report", "Resume instructions", "Back"])
+            if choice in (None, 5):
+                return
+            if choice == 0:
+                self.history()
+            elif choice == 1:
+                note = self.prompt("Session note")
+                if note:
+                    self.app.note(note)
+            elif choice == 2:
+                self.view("Notes", "\n\n".join(self.app.session.notes) or "No notes yet.")
+            elif choice == 3:
+                n = self.menu("REPORT EXPORT", ["HTML summary / omit sensitive details", "JSON summary / omit sensitive details",
+                              "Full private HTML / includes raw output", "Full private JSON / includes raw output", "Back"])
+                if n is not None and n < 4:
+                    path = self.app.export("html" if n % 2 == 0 else "json", sensitive=n >= 2)
+                    self.view("Report saved", str(path))
+            else:
+                self.view("RESUME A SESSION", f"Current session: {self.app.session.id}\n\n"
+                          "List saved sessions: hifi sessions\n"
+                          f"Resume this session: hifi --session {self.app.session.id}\n\n"
+                          "Use the same user and --home directory, if set. Root and normal users have separate default storage.\n"
+                          "Resume restores saved evidence and settings, not running processes.")
+
+    def settings_help(self):
+        while True:
+            choice = self.menu("SETTINGS & HELP", ["Dependencies", "Keyboard controls", "Command reference", "About D3FAULTH HIFI", "Back"])
+            if choice in (None, 4):
+                return
+            if choice == 0:
+                self.dependencies()
+            elif choice == 1:
+                self.view("KEYBOARD CONTROLS", "Number + Enter: open an option\nArrows or j/k: select\n00: Back in submenus; Exit on the main screen\n"
+                          "Escape or q: Back; Exit on the main screen\n\nEditor: arrows, Home/End, Backspace/Delete, Ctrl+U\n"
+                          "Result views: arrows and Page Up/Page Down\nBounded commands: Escape stops the process\n\n"
+                          "Inside the native engine, keys belong to that engine. Ctrl+C reaches its workflow. Exit it to return to HIFI.")
+            elif choice == 2:
+                self.view("COMMAND REFERENCE", "hifi                     Open terminal\nhifi --demo              Explore simulated workflows\n"
+                          "hifi doctor              Check dependencies and access\nhifi adapter list        List wireless interfaces\n"
+                          "hifi sessions            List saved sessions\nhifi --help              All CLI commands\n\n"
+                          "Adapter restart preview:\nhifi adapter restart --interface INTERFACE\n\n"
+                          "Privileged launch:\n" + access.launch_command())
+            else:
+                self.view("D3FAULTH / HIFI", f"Version {__version__}\nWireless control terminal\n\n"
+                          "Original D3FAULTH menus, command previews and session reporting.\n"
+                          "GPL-2.0-only. Source credits and inherited engine provenance are included in CREDITS.md.\n\n"
+                          "Software-verified alpha. Physical adapter and radio validation remain pending.")
+
+    def main(self):
+        entries = ["Dashboard", "Network Adapter", "Network Discovery", "Exploit", "Manual Commands",
+                   "Sessions & Reports", "Settings & Help", "Exit"]
+        descriptions = ["Session overview, scope and evidence-based next steps.", "Select, inspect, restart or restore a wireless adapter.",
+                        "Cached networks, passive capture and capture inspection.", "Existing engine workflows and editable options.",
+                        "Choose a command profile, edit its arguments and preview.", "Review history, add notes and export saved evidence.",
+                        "Dependencies, navigation, CLI reference and project details.", "Save the session and return to your shell."]
+        actions = [self.dashboard, self.adapter_controls, self.discovery, self.engine,
+                   self.manual_commands, self.sessions_reports, self.settings_help]
+        while True:
+            choice = self.menu("HIFI / COMMAND CENTER", entries, descriptions)
+            if choice in (None, 7):
+                self.app.store.save(self.app.session)
                 return
             try:
-                if choice == 0:
-                    self.scope()
-                elif choice == 1:
-                    options = ["Dependency status", "Run diagnostic workflow"] + [c.title for c in catalog.diagnostics()]
-                    n = self.menu("Adapter diagnostics", options)
-                    if n == 0:
-                        self.view("Dependencies", "\n".join(f"{r['name']:12} {r['path'] or 'MISSING'}\n  {r['purpose']}" for r in catalog.inventory()))
-                    elif n == 1:
-                        commands = catalog.diagnostics()
-                        rows = self.background("Adapter diagnostic workflow", lambda stop, emit: self.app.workflow(commands, stop, emit))
-                        self.view("Workflow results", "\n".join(f"{r['title']}: {r['status']}" for r in rows))
-                    elif n is not None:
-                        self.command(catalog.diagnostics()[n - 2])
-                elif choice == 2:
-                    self.command(catalog.cached_networks())
-                elif choice == 3:
-                    recommendations = recommended_commands(self.app.session)
-                    n = self.menu("Guided next steps", ["Read evidence and diagnosis"] + ["Suggested: " + c.title for _, c in recommendations])
-                    if n == 0:
-                        self.view("Evidence and diagnosis", "\n\n".join(f"[{a}] {b}\nNext: {c}" for a, b, c in suggest(self.app.session)))
-                    elif n is not None:
-                        reason, command = recommendations[n - 1]
-                        command.purpose = reason + " " + command.purpose
-                        self.command(command)
-                elif choice == 4:
-                    self.capture_inspection()
-                elif choice == 5:
-                    self.command(catalog.passive_capture(self.app.session.scope, self.app.output_path("pcapng")))
-                elif choice == 6:
-                    self.engine()
-                elif choice == 7:
-                    n = self.menu("Session evidence", ["Command history", "Add a note", "View notes"])
-                    if n == 0:
-                        self.history()
-                    elif n == 1:
-                        note = self.prompt("Session note")
-                        if note:
-                            self.app.note(note)
-                    elif n == 2:
-                        self.view("Notes", "\n\n".join(self.app.session.notes) or "No notes yet.")
-                elif choice == 8:
-                    n = self.menu("Report export", ["HTML summary / omit sensitive details", "JSON summary / omit sensitive details", "Full private HTML / includes raw output", "Full private JSON / includes raw output"])
-                    if n is not None:
-                        path = self.app.export("html" if n % 2 == 0 else "json", sensitive=n >= 2)
-                        self.view("Report saved", str(path))
-                elif choice == 9:
-                    question = self.prompt("Ask your local model (sends recent session output to local Ollama)")
-                    if question:
-                        answer = self.background("Local AI / response pending", lambda stop, emit: local_explanation(question, self.app.session), cancellable=False)
-                        self.view("Model explanation / verify against evidence", answer)
+                actions[choice]()
             except (ValueError, OSError, TypeError, KeyError) as exc:
                 self.view("Action could not finish", str(exc))
 

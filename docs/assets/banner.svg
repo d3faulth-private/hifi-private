@@ -1,9 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" role="img" aria-label="D3FAULTH HIFI wireless Exploit workbench">
-<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#080d12"/><stop offset="1" stop-color="#122133"/></linearGradient><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#21384a" stroke-width=".6"/></pattern></defs>
-<rect width="1280" height="360" rx="18" fill="url(#bg)"/><rect width="1280" height="360" rx="18" fill="url(#grid)" opacity=".45"/>
-<path d="M925 230a120 120 0 0 1 240 0M958 230a87 87 0 0 1 174 0M992 230a53 53 0 0 1 106 0" fill="none" stroke="#60eeb2" stroke-width="8" opacity=".9"/>
-<circle cx="1045" cy="231" r="12" fill="#60eeb2"/><path d="M1045 252v44" stroke="#60eeb2" stroke-width="5"/>
-<text x="65" y="63" fill="#6cefc1" font-family="monospace" font-size="20" letter-spacing="5">D3FAULTH / WIRELESS WORKBENCH</text>
-<text x="60" y="222" fill="#eef4fa" font-family="sans-serif" font-weight="800" font-size="154" letter-spacing="12">HI<tspan fill="#60eeb2">FI</tspan></text>
-<text x="68" y="279" fill="#bacad8" font-family="monospace" font-size="24" letter-spacing="2">INSPECT. UNDERSTAND. EXPLOIT.</text>
-<text x="68" y="323" fill="#6f8a9f" font-family="monospace" font-size="15">MANUAL CONTROL + GUIDED WORKFLOWS + LOCAL EVIDENCE</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-label="D3FAULTH HIFI Wireless Control">
+<rect width="1280" height="360" fill="#050709"/>
+<rect x="25" y="25" width="1230" height="310" rx="4" fill="none" stroke="#314047"/>
+<path d="M25 106H1255M25 285H1255" stroke="#314047"/>
+<rect x="51" y="48" width="8" height="30" fill="#8dff5e"/>
+<text x="80" y="75" font-family="monospace" font-weight="700" font-size="35" letter-spacing="7" fill="#8dff5e">D3FAULTH</text>
+<text x="1005" y="70" font-family="monospace" font-size="17" letter-spacing="2" fill="#57dce5">WIRELESS CONTROL</text>
+<text x="72" y="238" font-family="monospace" font-size="124" font-weight="700" letter-spacing="20" fill="#e1e9ed">HIFI</text>
+<path d="M480 140V258" stroke="#314047"/>
+<text x="525" y="165" font-family="monospace" font-size="22" fill="#e1e9ed">01  COMMAND CENTER</text>
+<text x="525" y="205" font-family="monospace" font-size="22" fill="#57dce5">02  ADAPTER CONTROL</text>
+<text x="525" y="245" font-family="monospace" font-size="22" fill="#e1e9ed">03  LOCAL EVIDENCE</text>
+<text x="65" y="317" font-family="monospace" font-size="16" letter-spacing="2" fill="#a1adb5">NUMBERED MENUS  /  EDITABLE COMMANDS  /  CLEAR STATUS</text>
+<text x="1055" y="317" font-family="monospace" font-size="16" fill="#8dff5e">D3FAULTH LABS</text>
+</svg>

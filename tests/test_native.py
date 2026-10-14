@@ -89,7 +89,7 @@ class NativeTests(unittest.TestCase):
         self.master, self.slave = pty.openpty()
         fcntl.ioctl(self.slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 120, 0, 0))
         self.original_termios = termios.tcgetattr(self.slave)
-        fixture_launcher = ("import sys; from hifi import app,cli; "
+        fixture_launcher = ("import sys; from hifi import app,cli; app.access.is_root=lambda: True; "
                             "app.engine_argv=lambda args: [sys.executable, " + repr(str(self.bin / "engine")) + ", *args]; "
                             "raise SystemExit(cli.main(sys.argv[1:]))")
         self.proc = subprocess.Popen([sys.executable, "-c", fixture_launcher, "--home", str(self.home), *args],
@@ -155,7 +155,7 @@ class NativeTests(unittest.TestCase):
         self.assertEqual(record["status"], "simulated")
 
     def test_native_run_rejects_redirected_terminal(self):
-        result = self.cli("exploit", "--run")
+        result = self.cli("exploit", "--run", "--", "--help")
         self.assertEqual(result.returncode, 1)
         self.assertIn("needs an interactive terminal", result.stdout)
         self.assertEqual(self.session()["records"][0]["status"], "error")
@@ -228,8 +228,8 @@ class NativeTests(unittest.TestCase):
 
     def test_curses_handoff_returns_to_menu(self):
         self.launch("tui")
-        self.await_text("INSPECT. UNDERSTAND. EXPLOIT.")
-        os.write(self.master, b"jjjjjj\n")
+        self.await_text("/ COMMAND CENTER")
+        os.write(self.master, b"04\n")
         self.await_text("Full HIFI Exploit / all bundled features")
         os.write(self.master, b"\n")
         self.await_text("Run command")
@@ -243,7 +243,7 @@ class NativeTests(unittest.TestCase):
         os.write(self.master, b"\n")
         self.await_text("Full HIFI Exploit / all bundled features")
         os.write(self.master, b"q")
-        self.await_text("INSPECT. UNDERSTAND. EXPLOIT.")
+        self.await_text("/ COMMAND CENTER")
         os.write(self.master, b"q")
         self.proc.wait(timeout=5)
         self.assertEqual(self.proc.returncode, 0)

@@ -50,3 +50,7 @@ HIFI uses separately installed Aircrack-ng tools, Wireshark/TShark, Linux wirele
 tools, Reaver/Bully, hcxtools, Hashcat/John and optional Ollama. Python dependencies
 include chardet and Requests. Their projects retain their own authorship,
 trademarks and licenses. Runtime branding does not change these attributions.
+
+HIFI 0.4.1 uses an original D3FAULTH/HIFI menu layout and wordmark.
+The numbered terminal, privilege guidance and selected-device recovery UI are
+HIFI additions; inherited engine provenance and notices remain unchanged.

@@ -24,7 +24,7 @@ def main():
         shutil.copytree(ROOT / "LICENSES", dest / "LICENSES")
         zipapp.create_archive(dest, app, interpreter="/usr/bin/env python3", main="hifi.cli:main", compressed=True)
     selected = [ROOT / name for name in ["README.md", "LICENSE", "CREDITS.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "pyproject.toml", ".gitignore"]]
-    for folder, patterns in {"hifi": ["*.py", "UPSTREAM.json"], "tests": ["*.py", "*.json"], "scripts": ["*.py"], "docs": ["*.md", "*.svg"], "LICENSES": ["*.txt"], ".github": ["*.yml"]}.items():
+    for folder, patterns in {"hifi": ["*.py", "UPSTREAM.json"], "tests": ["*.py", "*.json"], "scripts": ["*.py"], "docs": ["*.md", "*.svg", "*.png"], "LICENSES": ["*.txt"], ".github": ["*.yml"]}.items():
         for pattern in patterns:
             selected.extend((ROOT / folder).rglob(pattern))
     prefix = f"D3FAULTH-HIFI-v{__version__}"

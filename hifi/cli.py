@@ -4,7 +4,7 @@ import shlex
 import sys
 from threading import Event
 
-from . import __version__, catalog
+from . import __version__, access, adapters, catalog
 from .advisor import local_explanation, suggest, recommended_commands
 from .app import App
 from .demo import HELP, create_demo
@@ -24,6 +24,13 @@ def parser():
     sub.add_parser("doctor", help="List required/optional system tools")
     sub.add_parser("sessions", help="List saved sessions")
     sub.add_parser("diagnose", help="Run adapter diagnostics")
+    adapter = sub.add_parser("adapter", help="List, restart or restore a selected wireless adapter")
+    adapter_sub = adapter.add_subparsers(dest="adapter_action", required=True)
+    adapter_sub.add_parser("list", help="Show detected wireless interfaces")
+    restart = adapter_sub.add_parser("restart", help="Preview a selected adapter restart; add --run to execute")
+    restart.add_argument("--interface", required=True)
+    restart.add_argument("--restore-managed", action="store_true", help="Return monitor mode to normal managed Wi-Fi")
+    restart.add_argument("--run", action="store_true")
     scope = sub.add_parser("scope", help="Create/update a session's selected network")
     scope.add_argument("--interface", required=True)
     scope.add_argument("--bssid", required=True)
@@ -83,9 +90,20 @@ def main(argv=None):
     try:
         if args.action == "doctor":
             print(f"D3FAULTH HIFI {__version__} | Python {sys.version.split()[0]}")
+            print("Access: " + ("ROOT / privileged" if access.is_root() else "USER / live radio and adapter restart require root"))
             for row in catalog.inventory():
                 print(f"{row['name']:14} {row['path'] or 'MISSING'}")
             print("Core menus/demo need only Python. Live operations need their listed tools and a supported adapter.")
+            if not access.is_root():
+                print("Privileged launch: " + access.launch_command())
+            return 0
+        if args.action == "adapter" and args.adapter_action == "list":
+            rows = adapters.discover(args.demo)
+            print(f"{'INTERFACE':16} {'MODE':12} PHY")
+            for row in rows:
+                print(f"{row.name:16} {row.mode:12} {row.phy}")
+            if not rows:
+                print("No wireless adapter detected. Check USB passthrough and the driver.")
             return 0
         store = Store(args.home)
         if args.action == "sessions":
@@ -102,6 +120,17 @@ def main(argv=None):
             from .ui import launch
             launch(app)
             print(f"Session saved: {session.id}\nResume: hifi --session {session.id}")
+        elif args.action == "adapter":
+            plan = adapters.restart_plan(args.interface, args.restore_managed)
+            if not args.run:
+                print("Preview: selected adapter only; its connection will be interrupted.")
+                print("\n".join(f"{i:02d}  {shlex.join(c.argv)}" for i, c in enumerate(plan, 1)))
+                print("No changes made. Add --run to execute. Requires root outside demo mode.")
+                return 0
+            record = app.restart_adapter(args.interface, args.restore_managed, emit=lambda text: print(text, end="", flush=True))
+            print(record["output"])
+            print(f"Result: {record['status']} | session {session.id}")
+            return 0 if record["status"] in {"ok", "simulated"} else 1
         elif args.action == "scope":
             session.scope = Scope(args.interface, args.bssid, args.channel, args.duration).validate(target=True)
             store.save(session)

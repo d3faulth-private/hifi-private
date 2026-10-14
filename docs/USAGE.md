@@ -18,7 +18,7 @@ state directories; use the same user context to reopen a radio session.
 
 ## Full HIFI Exploit
 
-Open **HIFI Exploit → Full HIFI Exploit**. Its editable command begins with
+Open **04 Exploit → Full HIFI Exploit**. Its editable command begins with
 `hifi engine`. All baseline engine arguments remain available. Read **HIFI engine
 help** for full options. The integrated engine handles scanning, selection,
 wireless methods and prompts; no separately installed engine is invoked.
@@ -143,3 +143,21 @@ means exit code zero; it is not a recovery verdict. Review evidence before shari
 | Invalid engine option | Read `hifi engine --help -v`; the included baseline is fixed |
 | Capture preflight fails | Verify monitor mode and channel |
 | Adapter changed after exit | Inspect `iw dev` and restore its previous state with your normal tools |
+
+## Numbered terminal and adapter recovery (0.4.1)
+
+Type the displayed number, then Enter. Option 02 opens detected-adapter selection,
+restart, managed-mode restoration and refresh. The root/user status is shown in
+the header. Launch live operations with `sudo "$(command -v hifi)"` after installing
+HIFI with pipx. This preserves its Python environment.
+
+`hifi adapter list` reads interface inventory. `hifi adapter restart --interface
+wlan0` previews a restart. Append `--run` to execute with root, or
+`--restore-managed --run` to return to managed Wi-Fi as well. Only a currently
+detected wireless interface can be changed. Recovery does not restart global
+network services, delete virtual interfaces, or guarantee reconnection.
+
+The compact home screen has seven sections and **00 Exit**. Submenus use **00 Back**.
+Edit scope under **01 Dashboard → Edit session scope**. Manual commands are
+editable profiles under **05**; history, notes and exports are grouped under **06**.
+Selecting Exit saves session state and returns to the shell with resume instructions.
