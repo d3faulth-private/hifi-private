@@ -1,7 +1,8 @@
-# Hidden-network discovery (0.4.2)
+# Hidden-network discovery (0.4.3)
 
-Start HIFI with root access and select the detected Wi-Fi adapter in menu **02**.
-Open **03 Network Discovery → 01 Live scan / include hidden networks**.
+Start HIFI with root access and choose **01 Scan Wi-Fi** (or press Enter).
+One connected adapter is selected automatically. With multiple adapters, choose one
+when asked; an existing valid selection is retained.
 The scan uses that adapter; no BSSID or channel must be entered beforehand.
 
 `[Hidden]` means an access point was observed but its SSID is not yet known.
@@ -13,11 +14,17 @@ Use arrows or a row number and Enter to select. HIFI stops the scan, attempts
 adapter restoration and saves interface/BSSID/channel into the session scope.
 Network details show available security, timestamps, signal and client observations.
 Press **S** to stop while keeping the table open, **/** to filter, or Escape to
-return. The duration/bands menu offers 2.4 GHz, 5 GHz or both. Default: 30 seconds.
+return. **R** retries immediately; **O** opens optional settings, including bands
+and scan duration. Both stop and restore an active scan before continuing.
+Default: 30 seconds across 2.4 GHz and 5 GHz. **E** shows scanner details.
 The saved table is historical evidence; only the live scan refreshes it.
 
-If the scan reports a missing tool, install its named package and retry. No
-networks is an observation, not proof that no access point exists. Verify USB
+A backend failure displays **SCAN FAILED**. Press **E** to read its exit code and
+error; missing dependencies name the Kali installation command. A readable scan
+without access points displays **NO NETWORKS RECEIVED**, not a success message.
+Empty and failed scans collect adapter state before restoration. These checks
+and backend output are saved privately in the session. No networks is an
+observation, not proof that no access point exists. Verify USB
 passthrough, band support and signal range. Recovery failure is recorded in
 history; inspect the adapter and use menu **02** to restore normal Wi-Fi.
 
@@ -184,6 +191,6 @@ detected wireless interface can be changed. Recovery does not restart global
 network services, delete virtual interfaces, or guarantee reconnection.
 
 The compact home screen has seven sections and **00 Exit**. Submenus use **00 Back**.
-Edit scope under **01 Dashboard → Edit session scope**. Manual commands are
+Edit scope under **03 Dashboard → Edit session scope**. Manual commands are
 editable profiles under **05**; history, notes and exports are grouped under **06**.
 Selecting Exit saves session state and returns to the shell with resume instructions.

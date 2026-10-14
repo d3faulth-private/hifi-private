@@ -122,7 +122,7 @@ class CLITests(unittest.TestCase):
             self.fail(f"Terminal did not show {text!r}: {bytes(output)[-2000:]!r}")
         try:
             await_text("/ COMMAND CENTER")
-            os.write(master, b"01\n")
+            os.write(master, b"03\n")
             await_text("Edit session scope")
             os.write(master, b"02\n")
             await_text("Wireless interface")

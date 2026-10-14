@@ -1,6 +1,6 @@
-# Validation status — 0.4.2
+# Validation status — 0.4.3
 
-The software suite currently contains **70 tests**, using synthetic data, mocks
+The software suite currently contains **75 tests**, using synthetic data, mocks
 and real local subprocesses. No case targets a wireless network.
 
 Install the development dependencies with `python -m pip install '.[test]'`,
@@ -10,8 +10,10 @@ uses a VT screen model so curses' incremental redraws are interpreted correctly.
 Coverage includes:
 
 - Hidden AP detection, later observed-name updates, comma-containing names, unknown signal, partial CSV rows, client association and stable discovery ordering.
-- A real fixture subprocess writing changing scan CSV data; no radio hardware is involved.
-- Hidden-row selection in a real terminal, preserving HIFI's frame and saving the selected BSSID/channel.
+- Real fixture subprocesses writing changing scan CSV data, exiting with errors, producing an empty header, or producing no CSV; no radio hardware is involved.
+- Direct scan entry, hidden-row selection, rescan and options in a real terminal, preserving HIFI's frame and saving the selected BSSID/channel.
+- An optional real `airodump-ng` check reads a locally generated synthetic beacon PCAP into the CSV parser. CI installs aircrack-ng for Python 3.12; other matrix jobs skip this case. It opens no wireless interface.
+- Unknown-channel APs stay visible; stale adapter names are refreshed at scan start. Empty/failed scans clear old network results and preserve private diagnostic evidence.
 - Temporary monitor-mode cancellation, half-completed setup recovery, NetworkManager ownership restoration, adapter locking and visible recovery failures.
 - Summary exports omit network names, BSSIDs and observed client data; full exports retain them.
 

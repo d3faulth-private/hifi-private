@@ -9,6 +9,7 @@ import pty
 import select as io_select
 import struct
 import subprocess
+import shutil
 import sys
 import termios
 import time
@@ -17,14 +18,27 @@ import unittest
 from unittest.mock import patch
 
 from hifi.app import App
-from hifi.discovery import Network, Scan, parse_csv, scan_command, select
-from hifi.models import Scope, Session
+from hifi.discovery import Network, Scan, parse_csv, scan_command, select, result_message
+from hifi.models import Command, Scope, Session
+from hifi.runner import run
 from hifi.radio import Radio, State
 from hifi.reports import report_data
 from hifi.storage import Store
+from hifi.ui import UI
+from hifi.adapters import Adapter
 
 HEADER = "BSSID, First time seen, Last time seen, channel, Speed, Privacy, Cipher, Authentication, Power, # beacons, # IV, LAN IP, ID-length, ESSID, Key\n"
 CLIENTS = "\nStation MAC, First time seen, Last time seen, Power, # packets, BSSID, Probed ESSIDs\n"
+
+
+class FakeRadio:
+    interface = "wlan0"
+    restore_errors = []
+    steps = []
+    changed = True
+    def __enter__(self): return self
+    def __exit__(self, *_): pass
+    def monitor(self): pass
 
 
 def observation(name="", power="-63", bssid="02:11:22:33:44:55", channel=6):
@@ -52,9 +66,14 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(networks[0].ssid, " lab, room ")
         self.assertIsNone(networks[0].signal)
 
-    def test_incomplete_csv_and_invalid_channels_do_not_create_fake_networks(self):
+    def test_unknown_channel_keeps_observed_network_but_incomplete_rows_are_ignored(self):
         text = HEADER + observation(channel=-1) + "02:aa:bb:cc:dd:ee, 2026-10-14\n"
-        self.assertEqual(parse_csv(text)[0], [])
+        rows = parse_csv(text)[0]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].channel, 0)
+        with self.assertRaisesRegex(ValueError, "channel is not known"):
+            select(self.app, rows[0])
+        self.assertEqual(self.app.session.scope.bssid, "")
 
     def test_observed_clients_attach_to_the_correct_bssid(self):
         text = HEADER + observation() + CLIENTS + "02:aa:bb:cc:dd:ee, first, last, -70, 9, 02:11:22:33:44:55, lab\n"
@@ -100,9 +119,14 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_missing_backend_does_not_change_adapter(self):
         with patch("hifi.discovery.shutil.which", return_value=None), patch("hifi.discovery.Radio") as radio:
-            with self.assertRaisesRegex(ValueError, "Missing airodump"):
-                Scan(self.app).execute()
-            radio.assert_not_called()
+            radio.return_value.restore_errors = []
+            radio.return_value.steps = []
+            radio.return_value.changed = False
+            radio.return_value.interface = "wlan0"
+            record = Scan(self.app).execute()
+            self.assertEqual(record["status"], "error")
+            self.assertIn("Missing airodump", record["output"])
+            radio.return_value.__enter__.assert_not_called()
 
     def test_streaming_backend_fixture_reveals_hidden_name_and_persists_result(self):
         # A real child process emits two CSV revisions; the radio is entirely mocked.
@@ -113,20 +137,45 @@ class DiscoveryTests(unittest.TestCase):
                   f"p.write_text({(HEADER + observation('Revealed lab'))!r})\ntime.sleep(.25)\n")
         binary.write_text(script)
         binary.chmod(0o700)
-        class FakeRadio:
-            interface = "wlan0"
-            restore_errors = []
-            steps = []
-            changed = True
-            def __enter__(self): return self
-            def __exit__(self, *_): pass
-            def monitor(self): pass
-        with patch("hifi.discovery.Radio", return_value=FakeRadio()), patch.dict(os.environ, {"PATH": self.tmp.name + os.pathsep + os.environ["PATH"]}), patch("os.geteuid", return_value=0):
+        with patch("hifi.discovery.Radio", return_value=FakeRadio()), patch("hifi.discovery.shutil.which", return_value="available"), patch.dict(os.environ, {"PATH": self.tmp.name + os.pathsep + os.environ["PATH"]}), patch("os.geteuid", return_value=0):
             scan = Scan(self.app, 5)
             record = scan.execute()
         self.assertEqual(record["status"], "ok", record)
         self.assertEqual(self.app.session.networks[0]["ssid"], "Revealed lab")
         self.assertEqual(record["adapter_restoration"], "restored")
+
+    def test_failed_backend_and_empty_csv_are_distinct_and_keep_diagnostics(self):
+        binary = Path(self.tmp.name) / "airodump-ng"
+        cases = [("import sys; print('ioctl failed: No such device', file=sys.stderr); sys.exit(7)", "error", 7),
+                 ("import sys; from pathlib import Path; Path(sys.argv[sys.argv.index('--write')+1]+'-01.csv').write_text(" + repr(HEADER) + ")", "empty", 0),
+                 ("pass", "error", 0)]
+        for script, status, code in cases:
+            with self.subTest(status=status, script=script):
+                self.app.session.networks = [asdict(Network("02:11:22:33:44:99", "stale"))]
+                binary.write_text("#!/usr/bin/env python3\n" + script + "\n")
+                binary.chmod(0o700)
+                with patch("hifi.discovery.Radio", return_value=FakeRadio()), patch("hifi.discovery.shutil.which", return_value="available"), patch.dict(os.environ, {"PATH": self.tmp.name + os.pathsep + os.environ["PATH"]}), patch("os.geteuid", return_value=0), patch("hifi.discovery.diagnostics", return_value="USB DRIVER CHECK"):
+                    record = Scan(self.app, 5).execute()
+                self.assertEqual(record["status"], status, record)
+                self.assertEqual(record["returncode"], code)
+                self.assertIn("USB DRIVER CHECK", record["output"])
+                self.assertEqual(self.app.session.networks, [])
+                self.assertEqual(record["adapter_restoration"], "restored")
+                self.assertNotIn("USB DRIVER CHECK", json.dumps(report_data(self.app.session)))
+                if code == 7:
+                    self.assertIn("No such device", record["output"])
+                    self.assertIn("Reconnect", record["hint"])
+
+    def test_nonzero_exit_is_never_presented_as_a_success(self):
+        self.assertEqual(result_message({"status": "failed", "output": "error"})[0], "SCAN FAILED")
+
+    def test_scan_reselects_the_only_connected_adapter_after_a_name_change(self):
+        ui = object.__new__(UI)
+        ui.app = self.app
+        ui.menu = lambda *_: self.fail("A sole adapter should not require another menu")
+        with patch("hifi.ui.adapters.discover", return_value=[Adapter("wlan1", "managed", "phy2")]):
+            self.assertTrue(ui.choose_scan_adapter())
+        self.assertEqual(self.app.session.scope.interface, "wlan1")
 
     def test_restore_failure_is_visible_even_with_observed_networks(self):
         self.app.session.demo = True
@@ -144,6 +193,12 @@ class RadioRecoveryTests(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_timed_out_adapter_read_has_actionable_error(self):
+        from hifi.radio import read
+        with patch("hifi.radio.subprocess.run", side_effect=subprocess.TimeoutExpired(["iw"], 8)):
+            with self.assertRaisesRegex(ValueError, "did not respond"):
+                read(["iw", "dev"])
 
     def fake_run(self, command, cwd, stop, emit):
         argv = command.argv
@@ -233,15 +288,19 @@ class DiscoveryTerminalTests(unittest.TestCase):
                 self.fail(f"Missing {text} in rendered screen:\n" + "\n".join(screen.display))
             try:
                 wait("COMMAND CENTER")
-                os.write(master, b"03\n")
-                wait("Live scan / include hidden networks")
-                os.write(master, b"01\n")
+                os.write(master, b"\n")  # Default action starts scanning directly.
                 wait("[Hidden]")
                 os.write(master, b"02\n")
                 wait("SELECTED NETWORK / [Hidden]")
                 os.write(master, b"\n")
-                wait("Live scan / include hidden networks")
+                wait("SAVED")
+                os.write(master, b"r")
+                wait("SCAN COMPLETE")
+                os.write(master, b"o")
+                wait("SCAN OPTIONS")
                 os.write(master, b"00\n")
+                wait("SAVED")
+                os.write(master, b"q")
                 wait("COMMAND CENTER")
                 os.write(master, b"00\n")
                 proc.wait(timeout=6)
@@ -256,6 +315,34 @@ class DiscoveryTerminalTests(unittest.TestCase):
                     proc.kill()
                     proc.wait()
                 os.close(master)
+
+
+class RealBackendOfflineTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("airodump-ng"), "aircrack-ng is needed for the offline backend check")
+    def test_headless_airodump_reads_synthetic_beacons_into_our_parser(self):
+        # File input only: no interface, capture socket, or transmitted frames.
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            packet_file, prefix = folder / "synthetic.pcap", folder / "observations"
+            packets = bytearray(struct.pack("<IHHIIII", 0xa1b2c3d4, 2, 4, 0, 0, 65535, 105))
+            for suffix, name in [(0x55, b"HIFI offline fixture"), (0x66, b"")]:
+                mac = bytes([2, 0x11, 0x22, 0x33, 0x44, suffix])
+                for sequence in range(3):
+                    frame = (b"\x80\x00\x00\x00" + b"\xff" * 6 + mac + mac + struct.pack("<H", sequence << 4)
+                             + struct.pack("<QHH", sequence * 100000, 100, 1)
+                             + bytes([0, len(name)]) + name + b"\x01\x01\x82\x03\x01\x06")
+                    packets += struct.pack("<IIII", 1700000000 + sequence, 0, len(frame), len(frame)) + frame
+            packet_file.write_bytes(packets)
+            command = Command("Offline discovery parser check", ["airodump-ng", "--background", "1", "--write-interval", "1",
+                              "--output-format", "csv", "--write", str(prefix), "-r", str(packet_file)], "Synthetic file only", timeout=3)
+            record = run(command, folder)
+            self.assertIn(record["status"], {"ok", "timeout"}, record)
+            csv_path = Path(str(prefix) + "-01.csv")
+            self.assertTrue(csv_path.exists(), record)
+            rows, _ = parse_csv(csv_path.read_text())
+            self.assertEqual({n.bssid for n in rows}, {"02:11:22:33:44:55", "02:11:22:33:44:66"}, csv_path.read_text())
+            self.assertEqual({n.name for n in rows}, {"HIFI offline fixture", "[Hidden]"})
+            self.assertTrue(all(n.channel == 6 for n in rows))
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "d3faulth-hifi"
-version = "0.4.2"
+version = "0.4.3"
 description = "An interactive wireless Exploit workbench by D3FAULTH"
 readme = "README.md"
 requires-python = ">=3.10"

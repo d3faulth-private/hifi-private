@@ -23,6 +23,8 @@ def read(argv):
                                 env={**os.environ, "LC_ALL": "C"})
     except FileNotFoundError as exc:
         raise ValueError(f"Missing {argv[0]}. Open Settings & Help > Dependencies.") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError(f"{argv[0]} did not respond within 8 seconds. Check the USB adapter and driver.") from exc
     if result.returncode:
         raise ValueError(clean(result.stderr or result.stdout).strip() or f"{argv[0]} failed")
     return result.stdout

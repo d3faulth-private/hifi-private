@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.3 — direct scanning and visible failures
+
+- Make Scan Wi-Fi the first/default action; open the live table directly and select the sole connected adapter automatically.
+- Add in-table rescan, optional settings and scanner details; retain numbered network selection and D3FAULTH framing.
+- Treat nonzero scanner exits as failures, distinguish empty results, retain exit/error output and collect read-only adapter evidence before restoration.
+- Explicitly run the CSV scanner in background mode; keep detected APs with unknown channels visible instead of discarding them.
+- Report missing scan dependencies and timed-out adapter reads; clear stale observations after a new failed/empty scan.
+- Add offline real-backend CSV verification in CI. Live RTL8814AU/VMware reception remains unverified.
+- Keep the existing engine unchanged; this is a discovery/usability fix.
+
 ## 0.4.2 — passive hidden-network discovery
 
 - Replace the Discovery menu's cached-network entry with a real selected-adapter scan.

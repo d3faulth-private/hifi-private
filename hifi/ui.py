@@ -441,24 +441,51 @@ class UI:
                     self.view("Model explanation / verify against evidence", answer)
 
     def discovery(self):
+        action = "scan"
         while True:
-            choice = self.menu("NETWORK DISCOVERY", ["Live scan / include hidden networks", "Latest network table / select a network",
-                               "Scan duration and bands", "Passive capture / existing monitor interface",
-                               "Edit capture scope", "Inspect a capture file", "Back"])
-            if choice in (None, 6):
+            if action == "options":
+                choice = self.menu("SCAN OPTIONS", ["Scan again", "Change band / duration", "Choose adapter",
+                                   "Saved observations", "Passive capture / advanced", "Inspect a capture file", "Back"])
+                if choice in (None, 6):
+                    action = "saved"
+                elif choice == 0:
+                    action = "scan"
+                elif choice == 1:
+                    self.discovery_options()
+                elif choice == 2:
+                    self.choose_scan_adapter(force=True)
+                elif choice == 3:
+                    action = "saved"
+                elif choice == 4:
+                    self.command(catalog.passive_capture(self.app.session.scope, self.app.output_path("pcapng")))
+                else:
+                    self.capture_inspection()
+                continue
+            if action == "scan" and not self.choose_scan_adapter():
                 return
-            if choice == 0:
-                self.network_table(live=True)
-            elif choice == 1:
-                self.network_table()
-            elif choice == 2:
-                self.discovery_options()
-            elif choice == 3:
-                self.command(catalog.passive_capture(self.app.session.scope, self.app.output_path("pcapng")))
-            elif choice == 4:
-                self.scope()
-            else:
-                self.capture_inspection()
+            action = self.network_table(live=action == "scan")
+            if action not in {"scan", "options", "saved"}:
+                return
+
+    def choose_scan_adapter(self, force=False):
+        self.refresh_adapters()
+        if not self.adapter_rows:
+            self.view("NO WI-FI ADAPTER", self.adapter_notice +
+                      "\n\nConnect your USB Wi-Fi adapter to the Kali guest in VMware, then try Scan Wi-Fi again.")
+            return False
+        scope = self.app.session.scope
+        if not force and scope.interface in {a.name for a in self.adapter_rows}:
+            return True
+        if not force and len(self.adapter_rows) == 1:
+            scope.interface = self.adapter_rows[0].name
+            self.app.store.save(self.app.session)
+            return True
+        index = self.menu("CHOOSE WI-FI ADAPTER", [f"{a.name} / {a.mode}" for a in self.adapter_rows] + ["Back"])
+        if index is None or index >= len(self.adapter_rows):
+            return False
+        scope.interface = self.adapter_rows[index].name
+        self.app.store.save(self.app.session)
+        return True
 
     def discovery_options(self):
         settings = self.app.session.discovery_settings
@@ -495,7 +522,7 @@ class UI:
         rows = [discovery.Network(**row) for row in session.networks]
         scan, thread, errors = None, None, []
         selected, digits, query = 0, "", ""
-        chosen = None
+        chosen, next_action = None, None
         if live:
             access.require_root(session.demo)
             if not session.scope.interface:
@@ -518,11 +545,14 @@ class UI:
                     rows, _, message = scan.snapshot()
                 else:
                     message = "Saved observations / start a live scan to refresh"
+                record = scan.record if scan else None
+                if record and not active:
+                    message = record["hint"]
                 visible = [(i, row) for i, row in enumerate(rows, 1)
                            if query.lower() in (row.name + " " + row.bssid + " " + row.security).lower()]
                 selected = min(selected, max(0, len(visible) - 1))
                 h, w = self.frame("LIVE NETWORKS / INCLUDING HIDDEN" if active else "NETWORKS / INCLUDING HIDDEN",
-                                  "ENTER select   S stop   / filter   ESC back")
+                                  "ENTER select  S stop  R rescan  O options  ESC back")
                 if h < 20 or w < 70:
                     self.put(7, 4, "Resize terminal to at least 70 x 20. ESC stops.", 4)
                     self.screen.refresh()
@@ -531,8 +561,9 @@ class UI:
                     continue
                 if active and scan:
                     self.put(h - 5, 4, f"ADAPTER  {session.scope.interface}  /  {scan.mode}  /  passive discovery", 2)
-                state = "STOPPING / RESTORING" if scan and scan.stop.is_set() and active else "SCANNING" if active else "SCAN STOPPED" if scan else "SAVED"
-                elapsed = int(time.monotonic() - scan.started) if scan else 0
+                state = ("STOPPING / RESTORING" if scan and scan.stop.is_set() and active else
+                         "SCANNING" if active else "SCAN FAILED" if errors else record["summary"] if record else "SAVED")
+                elapsed = int(record["elapsed"]) if record and not active else int(time.monotonic() - scan.started) if scan else 0
                 self.put(6, 4, f"{state}  {elapsed}s   {len(rows)} networks   Filter: {query or 'all'}", 2)
                 name_width = max(8, min(28, w - 65))
                 header = f" NO  {'NETWORK':<{name_width}}  BSSID / MAC        CH  RSSI SECURITY  CLI"
@@ -542,21 +573,25 @@ class UI:
                 for line, (number, network) in enumerate(visible[start:start + count]):
                     signal = str(network.signal) if network.signal is not None else "?"
                     label = (f" {number:02d}  {network.name[:name_width]:<{name_width}}  {network.bssid} "
-                             f"{network.channel:3} {signal:>5} {network.security[:8]:8} {len(network.clients):3}")
+                             f"{str(network.channel or '?'):>3} {signal:>5} {network.security[:8]:8} {len(network.clients):3}")
                     self.put(9 + line, 4, label.ljust(w - 9), 5 if start + line == selected else 3)
                 if not visible:
-                    self.put(10, 4, "Waiting for observations…" if active else "No matching networks observed.", 4)
+                    label = ("Waiting for observations…" if active else "No matches. Press / to clear the filter." if query else
+                             "Scan could not complete. Press E for the error." if errors or record and record["status"] in {"error", "failed"} else
+                             "No networks received. Press R to try again.")
+                    self.put(10, 4, label, 4)
                 if digits:
                     message = "NETWORK NUMBER: " + digits + " / Enter selects"
                 elif errors:
                     message = errors[0]
-                elif scan and scan.record and scan.record["status"] == "error":
-                    message = "Scan error / press E for details"
                 self.put(h - 8, 4, message, 4)
-                self.put(h - 7, 4, "Signal: driver RSSI | Hidden names require revealing traffic", 2)
+                self.put(h - 7, 4, "/ filter   E scanner details   Signal: driver RSSI", 2)
                 self.screen.refresh()
                 key = self.screen.getch()
                 if key in (27, ord("q")):
+                    break
+                if key in (ord("r"), ord("R"), ord("o"), ord("O")):
+                    next_action = "scan" if chr(key).lower() == "r" else "options"
                     break
                 if key in (ord("s"), ord("S")) and scan:
                     scan.stop.set()
@@ -588,7 +623,9 @@ class UI:
                     self.screen.timeout(150)
                 elif key in (ord("e"), ord("E")) and not active:
                     self.screen.timeout(-1)
-                    self.view("DISCOVERY DETAILS", "\n".join(errors) or (scan.record["output"] if scan and scan.record else message))
+                    detail = "\n".join(errors) or ((f"{record['summary']}\nExit code: {record.get('returncode')}\n"
+                              f"Adapter restoration: {record.get('adapter_restoration')}\n\n{record['output']}") if record else message)
+                    self.view("SCANNER DETAILS", detail)
                     self.screen.timeout(150)
         finally:
             if scan:
@@ -605,10 +642,8 @@ class UI:
                 chosen = next((row for row in scan.snapshot()[0] if row.bssid == chosen.bssid), chosen)
             discovery.select(self.app, chosen)
             self.network_details(chosen)
-        elif errors:
-            self.view("DISCOVERY COULD NOT START", "\n".join(errors))
-        elif scan and scan.record and scan.record["status"] == "error":
-            self.view("DISCOVERY ERROR", scan.record["output"])
+            return "saved"
+        return next_action
 
     def manual_commands(self):
         while True:
@@ -678,13 +713,13 @@ class UI:
                           "Software-verified alpha. Physical adapter and radio validation remain pending.")
 
     def main(self):
-        entries = ["Dashboard", "Network Adapter", "Network Discovery", "Exploit", "Manual Commands",
+        entries = ["Scan Wi-Fi", "Network Adapter", "Dashboard", "Exploit", "Manual Commands",
                    "Sessions & Reports", "Settings & Help", "Exit"]
-        descriptions = ["Session overview, scope and evidence-based next steps.", "Select, inspect, restart or restore a wireless adapter.",
-                        "Live discovery, hidden networks, client details and selection.", "Existing engine workflows and editable options.",
+        descriptions = ["Start a live scan, including hidden networks.", "Select, inspect, restart or restore a wireless adapter.",
+                        "Session overview, scope and evidence-based next steps.", "Existing engine workflows and editable options.",
                         "Choose a command profile, edit its arguments and preview.", "Review history, add notes and export saved evidence.",
                         "Dependencies, navigation, CLI reference and project details.", "Save the session and return to your shell."]
-        actions = [self.dashboard, self.adapter_controls, self.discovery, self.engine,
+        actions = [self.discovery, self.adapter_controls, self.dashboard, self.engine,
                    self.manual_commands, self.sessions_reports, self.settings_help]
         while True:
             choice = self.menu("HIFI / COMMAND CENTER", entries, descriptions)

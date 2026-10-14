@@ -1,7 +1,7 @@
 <div align="center">
   <img src="docs/assets/banner.svg" alt="D3FAULTH / HIFI — Wireless Control" width="100%">
   <p><strong>An interactive wireless Exploit toolkit with an integrated engine.</strong></p>
-  <p>Python 3.10+ · Linux · GPL-2.0-only · 0.4.2 alpha</p>
+  <p>Python 3.10+ · Linux · GPL-2.0-only · 0.4.3 alpha</p>
 </div>
 
 **HIFI is the application.** Run `hifi` for its terminal menus, command editor,
@@ -19,7 +19,7 @@ modifications and inherited limitations are recorded in [credits](CREDITS.md).
 From the cloned repository or extracted source folder on Kali/Debian:
 
 ```bash
-sudo apt install pipx
+sudo apt install pipx aircrack-ng iw iproute2
 pipx install .
 pipx ensurepath
 ```
@@ -73,9 +73,9 @@ adapter, last-read mode, session and command count.
 
 | Main menu | Action |
 | --- | --- |
-| 01 | Dashboard: session scope, overview and guidance |
+| 01 | Scan Wi-Fi: start live discovery, including hidden networks |
 | 02 | Network Adapter: selection, diagnostics, restart and recovery |
-| 03 | Network Discovery: live visible/hidden networks, client observations and selection |
+| 03 | Dashboard: session scope, overview and guidance |
 | 04 | Exploit: existing engine workflows |
 | 05 | Manual Commands: choose a profile and edit its arguments |
 | 06 | Sessions & Reports: history, notes and exports |
@@ -87,8 +87,10 @@ entries fit at 80×24. See the agreed [D3FAULTH terminal standard](docs/TERMINAL
 
 ## Hidden-network discovery
 
-Choose **02 Network Adapter → Select detected adapter**, then
-**03 Network Discovery → 01 Live scan / include hidden networks**.
+Choose **01 Scan Wi-Fi**, or just press Enter on the home screen.
+HIFI selects the only connected adapter automatically; with multiple adapters,
+it asks you to choose one unless a connected adapter is already selected.
+No BSSID, channel or command entry is needed.
 This is a live, passive scan on the selected adapter using `airodump-ng`.
 It does not read NetworkManager's old network cache.
 
@@ -110,9 +112,14 @@ discovery feature never sends deauthentication frames or guesses hidden names.
 
 - **S** stops the scan and keeps its observations on screen.
 - **/** filters by name, BSSID or security; **Escape** returns.
-- **03 Scan duration and bands** selects 5–3600 seconds and 2.4 GHz, 5 GHz or both.
-- **02 Latest network table** opens saved observations. It does not imply the
-  networks are still present; check each network's last-seen timestamp.
+- **R** restores the adapter and starts a fresh scan.
+- **O** stops scanning and opens optional band/duration, adapter and saved-table controls.
+- **E** shows the scanner exit code, error output and collected adapter checks.
+- A failed backend is labelled **SCAN FAILED**. A readable scan with zero access
+  points is labelled **NO NETWORKS RECEIVED**, with retry/settings guidance.
+- Unknown channels are shown as **?**; the detected AP remains visible, but cannot
+  be selected until a channel is observed.
+- Saved observations are historical; check each network's last-seen timestamp.
 
 Monitor mode temporarily interrupts the selected adapter's normal connection.
 HIFI records its prior mode, link state and NetworkManager ownership, then

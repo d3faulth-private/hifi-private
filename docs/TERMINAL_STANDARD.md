@@ -20,9 +20,9 @@ own features and command names. This document does not change other repositories
 
 | Number | Section | Contents |
 | --- | --- | --- |
-| 01 | Dashboard | Overview, session scope, guided steps, optional local explanation |
+| 01 | Scan Wi-Fi | Direct live discovery, hidden networks, selection, retry, optional settings |
 | 02 | Network Adapter | Select, restart, managed-mode restoration, refresh, details, diagnostics |
-| 03 | Network Discovery | Cached networks, passive capture, scope, file inspection |
+| 03 | Dashboard | Overview, session scope, guided steps, optional local explanation |
 | 04 | Exploit | Existing engine menu and options |
 | 05 | Manual Commands | Editable diagnostic, interface, cached-network, file and engine profiles |
 | 06 | Sessions & Reports | History, notes, exports, resume instructions |
