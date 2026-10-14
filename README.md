@@ -1,7 +1,7 @@
 <div align="center">
   <img src="docs/assets/banner.svg" alt="D3FAULTH / HIFI — Wireless Control" width="100%">
   <p><strong>An interactive wireless Exploit toolkit with an integrated engine.</strong></p>
-  <p>Python 3.10+ · Linux · GPL-2.0-only · 0.4.4 alpha</p>
+  <p>Python 3.10+ · Linux · GPL-2.0-only · 0.4.5 alpha</p>
 </div>
 
 **HIFI is the application.** Run `hifi` for its terminal menus, command editor,
@@ -339,3 +339,31 @@ GPL-2.0-only; original notices are retained. Source archives contain the complet
 bundled engine source.
 
 Use wireless Exploit workflows on equipment and networks you are authorized to assess.
+
+
+## Evidence assessment and local AI (0.4.5)
+
+Select a discovered network, then **06 Evidence assessment / local AI**.
+The offline assessment separates observed security/channel/client data from
+unknown WPS lock state, PMF, firmware and password strength. It considers only
+records for the selected BSSID. No model is needed for this assessment.
+
+The optional **Explain with local AI** action uses an installed Ollama model
+named by `HIFI_OLLAMA_MODEL`, at `127.0.0.1:11434` only. Start Ollama separately
+and make that environment variable available to the user running HIFI (including
+root when using sudo). Missing model/service errors appear inside HIFI.
+Selected-network explanations send assessment text, including the network's
+identifiers, but exclude raw logs and recovered credentials. Model output is
+advisory and never executed. No model is bundled or downloaded automatically.
+
+**07 Network adapter / restart** opens the existing selected-device recovery
+controls. During jobs, **D** expands live logs and **Esc** cancels. Wide menus
+show an action panel; smaller windows retain numbered navigation. Terminal font
+size is controlled by your terminal application.
+
+This release fixes terminal-size queries when stdin is not a TTY and prevents
+exited child processes from leaving the UI waiting on descendant output pipes.
+It does not add an evil-twin module. Hardware recovery still needs validation on
+your Kali adapter; synthetic tests do not demonstrate password/PIN recovery.
+
+![Selected-network evidence assessment with synthetic demo data](docs/assets/terminal-assessment.png)

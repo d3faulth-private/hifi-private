@@ -45,6 +45,9 @@ def run(command, cwd, stop=None, emit=None, tick=None):
         signal_at = None
         stage = 0
         while selector.get_map() or proc.poll() is None:
+            # A dead parent must not leave inherited output pipes open indefinitely.
+            if proc.poll() is not None:
+                _signal_group(proc, signal.SIGKILL)
             elapsed = time.monotonic() - started
             if tick is not None and reason is None:
                 tick()

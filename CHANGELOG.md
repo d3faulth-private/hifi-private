@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.5 — reliability and evidence assessment
+
+- Replace three stty size calls with terminal sizing that supports piped execution.
+- Clean up descendants after parent exit so inherited pipes do not stall results.
+- Add wide action panels, structured job status, elapsed time and expandable logs.
+- Add selected-network evidence assessments and optional local Ollama explanations without raw logs or recovered credentials.
+- Expose adapter recovery directly from network actions.
+- Add regression coverage for non-TTY execution, dead-parent cleanup and assessment privacy/scope.
+
 ## 0.4.4 — selected-network WPA/WPS integration
 
 - Open Network Actions after discovery selection; connect WPA/WPA2 wordlist and WPS PIN/Pixie-Dust workflows to that exact adapter, BSSID and channel.

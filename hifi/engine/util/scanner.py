@@ -1,3 +1,4 @@
+# Modified by D3FAULTH: safe terminal sizing for embedded/piped execution.
 # Derived from Wifite2 2.8.2 by derv82, kimocoder and contributors.
 # GPL-2.0-only; see LICENSE and CREDITS.md.
 # Modified by D3FAULTH on 2026-10-14 for HIFI package integration, branding,
@@ -212,14 +213,14 @@ class Scanner(object):
 
     @staticmethod
     def get_terminal_height():
-        import os
-        (rows, columns) = os.popen('stty size', 'r').read().split()
+        import shutil
+        columns, rows = shutil.get_terminal_size(fallback=(80, 24))
         return int(rows)
 
     @staticmethod
     def get_terminal_width():
-        import os
-        (rows, columns) = os.popen('stty size', 'r').read().split()
+        import shutil
+        columns, rows = shutil.get_terminal_size(fallback=(80, 24))
         return int(columns)
 
     def select_targets(self):

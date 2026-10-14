@@ -7,7 +7,7 @@ import time
 from collections import deque
 
 from . import __version__, access, adapters, catalog, discovery
-from .advisor import local_explanation, suggest, recommended_commands
+from .advisor import local_explanation, suggest, recommended_commands, network_assessment
 from .demo import HELP
 from .models import Scope, clean
 from . import selected as selected_workflows
@@ -25,6 +25,7 @@ class UI:
             for i, fg in enumerate([curses.COLOR_GREEN, curses.COLOR_CYAN, curses.COLOR_WHITE, curses.COLOR_YELLOW], 1):
                 curses.init_pair(i, fg, curses.COLOR_BLACK)
             curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_GREEN)
+            curses.init_pair(6, curses.COLOR_RED, curses.COLOR_BLACK)
             self.screen.bkgd(" ", curses.color_pair(3))
         self.refresh_adapters()
 
@@ -78,7 +79,7 @@ class UI:
         self.box(0, 1, h - 2, w - 2)
         self.put(1, 4, "D3FAULTH", 1, True)
         self.put(1, max(20, w - 18), f"HIFI  v{__version__}", 2)
-        self.put(2, 4, "H I F I   /   WIRELESS CONTROL", 3, True)
+        self.put(2, 4, "H I F I   /   WIRELESS WORKSPACE", 3, True)
         privilege = "DEMO / SIMULATED" if self.app.session.demo else ("ROOT / PRIVILEGED" if access.is_root() else "USER / ROOT NEEDED FOR RADIO")
         self.put(3, 4, privilege, 2 if self.app.session.demo or access.is_root() else 4)
         self.separator(4)
@@ -110,10 +111,19 @@ class UI:
                     return None
                 continue
             start = max(0, selected - visible + 1)
+            panel = w >= 110 and descriptions
+            menu_width = w // 2 - 6 if panel else w - 9
             for offset, label in enumerate(entries[start:start + visible]):
                 i = start + offset
-                self.put(7 + offset, 4, f" {codes[i]:0{width}d}  {label}".ljust(w - 9), 5 if i == selected else 3, i == selected)
-            if descriptions and h >= 24:
+                self.put(7 + offset, 4, f" {codes[i]:0{width}d}  {label}"[:menu_width].ljust(menu_width), 5 if i == selected else 3, i == selected)
+            if panel:
+                x = w // 2 + 2
+                self.box(6, x - 2, h - 9, w - 4)
+                self.put(7, x, "SELECTED ACTION", 2, True)
+                for j, line in enumerate(textwrap.wrap(descriptions[selected], w - x - 7)[:max(1, h - 19)]):
+                    self.put(9 + j, x, line)
+                self.put(h - 10, x, "ENTER open  /  ESC back", 1)
+            if descriptions and h >= 24 and not panel:
                 self.put(h - 8, 4, descriptions[selected], 2)
             self.screen.refresh()
             key = self.screen.getch()
@@ -218,12 +228,14 @@ class UI:
         self.app.session.scope = Scope(values[0], values[1], int(values[2]), int(values[3])).validate()
         self.app.store.save(self.app.session)
 
-    def background(self, title, action, cancellable=True, context="", adapter_state=None):
+    def background(self, title, action, cancellable=True, context="", adapter_state=None, stage=None):
         stop = threading.Event()
         output = deque(maxlen=240)
+        output_lock = threading.Lock()
         result, errors = [], []
         def emit(value):
-            output.extend(clean(value).splitlines())
+            with output_lock:
+                output.extend(clean(value).splitlines())
         def target():
             try:
                 result.append(action(stop, emit))
@@ -231,6 +243,7 @@ class UI:
                 errors.append(str(exc))
         thread = threading.Thread(target=target, daemon=False)
         started = time.monotonic()
+        show_logs = False
         thread.start()
         self.screen.timeout(100)
         try:
@@ -241,12 +254,25 @@ class UI:
                 if adapter_state:
                     interface, mode = adapter_state()
                     self.put(h - 5, 4, f"ADAPTER  {interface} / {mode} | CHANNEL {self.app.session.scope.channel}", 2)
-                self.put(8 if context else 7, 4, "STOPPING / RESTORING ADAPTER IF NEEDED..." if stop.is_set() else f"RUNNING / {int(time.monotonic() - started)}s", 4)
-                for i, line in enumerate(list(output)[-max(1, h - (17 if context else 16)):]):
-                    self.put((10 if context else 9) + i, 4, line)
+                with output_lock:
+                    lines = list(output)
+                fatal = any("HIFI error:" in line for line in lines)
+                status = "ERROR REPORTED / waiting for cleanup" if fatal else "STOPPING / restoring adapter" if stop.is_set() else "ACTIVE"
+                self.put(8 if context else 7, 4, f"{status}   |   ELAPSED {int(time.monotonic() - started)}s", 6 if fatal else 4, True)
+                self.put(10, 4, "STAGE  " + (stage() if stage else "Executing operation"), 2)
+                self.put(11, 4, "EVIDENCE  Result verification pending until the operation finishes.")
+                self.put(13, 4, "DETAILS / D hide logs" if show_logs else "DETAILS / D show live logs", 1, True)
+                if show_logs and h >= 24:
+                    for i, line in enumerate(lines[-max(1, h - 22):]):
+                        self.put(15 + i, 4, line)
+                elif h >= 24:
+                    self.put(15, 4, lines[-1] if lines else "Waiting for process output...", 3)
                 self.screen.refresh()
-                if self.screen.getch() == 27 and cancellable:
+                key = self.screen.getch()
+                if key == 27 and cancellable:
                     stop.set()
+                elif key in (ord("d"), ord("D")):
+                    show_logs = not show_logs
         finally:
             stop.set()
             thread.join()
@@ -531,12 +557,14 @@ class UI:
         while True:
             choice = self.menu("NETWORK ACTIONS / " + network.name,
                                ["WPA/WPA2 password Exploit", "WPS PIN / Pixie-Dust Exploit", "Network details",
-                                "Exploit settings", "Last result for this network", "Back"],
+                                "Exploit settings", "Last result for this network", "Evidence assessment / local AI", "Network adapter / restart", "Back"],
                                ["Capture a handshake and check your wordlist.", "Run WPS workflows if the engine observes usable WPS.",
                                 "BSSID, security, channel, signal and observed clients.",
                                 "Wordlist, overall time limit and WPA disconnect behavior.",
-                                "Read recorded evidence and the adapter restoration result.", "Return to the network table."])
-            if choice in (None, 5):
+                                "Read recorded evidence and the adapter restoration result.",
+                                "Observed facts, unknowns and explained next checks for this BSSID.",
+                                "Inspect, restart or restore the selected adapter.", "Return to the network table."])
+            if choice in (None, 7):
                 return
             try:
                 if choice in (0, 1):
@@ -545,12 +573,34 @@ class UI:
                     self.network_details(network)
                 elif choice == 3:
                     self.exploit_settings()
+                elif choice == 5:
+                    self.assess_network(network)
+                elif choice == 6:
+                    self.adapter_controls()
                 else:
                     record = next((r for r in reversed(self.app.session.records)
                                    if r.get("selected_target", {}).get("bssid") == network.bssid), None)
                     self.view("SELECTED NETWORK RESULT", selected_workflows.result_text(record) if record else "No workflow has run for this selected network.")
             except (ValueError, OSError, TypeError, KeyError) as exc:
                 self.view("WORKFLOW NOT READY", str(exc))
+
+    def assess_network(self, network):
+        while True:
+            evidence = network_assessment(network, self.app.session)
+            choice = self.menu("ASSESSMENT / " + network.name,
+                               ["Observed evidence and suggested checks", "Explain with local AI", "Back"],
+                               ["Works offline without a model; conclusions are tied to recorded evidence.",
+                                "Optional Ollama model; sends this assessment only to localhost. No raw logs or credentials.",
+                                "Return to this network's actions."])
+            if choice in (None, 2):
+                return
+            if choice == 0:
+                self.view("NETWORK EVIDENCE / " + network.name, evidence)
+            else:
+                answer = self.background("LOCAL AI / SELECTED NETWORK", lambda stop, emit:
+                    local_explanation("Explain the evidence, unknowns, prerequisites and limitations of the recommended checks. Do not invent findings.",
+                                      self.app.session, evidence=evidence), cancellable=False)
+                self.view("AI EXPLANATION / verify against evidence", answer)
 
     def exploit_settings(self):
         settings = self.app.session.exploit_settings
@@ -598,7 +648,7 @@ class UI:
             return
         record = self.background(job.command.title, job.execute,
                                  context=f"{network.name} / {job.scope.bssid} / CH {job.scope.channel}",
-                                 adapter_state=lambda: (job.scope.interface, job.mode))
+                                 adapter_state=lambda: (job.scope.interface, job.mode), stage=lambda: job.stage)
         self.refresh_adapters()
         self.view("SELECTED NETWORK RESULT", selected_workflows.result_text(record))
 
@@ -650,7 +700,8 @@ class UI:
                          "SCANNING" if active else "SCAN FAILED" if errors else record["summary"] if record else "SAVED")
                 elapsed = int(record["elapsed"]) if record and not active else int(time.monotonic() - scan.started) if scan else 0
                 self.put(6, 4, f"{state}  {elapsed}s   {len(rows)} networks   Filter: {query or 'all'}", 2)
-                name_width = max(8, min(28, w - 65))
+                table_width = w - 35 if w >= 120 else w
+                name_width = max(8, min(28, table_width - 65))
                 header = f" NO  {'NETWORK':<{name_width}}  BSSID / MAC        CH  RSSI SECURITY  CLI"
                 self.put(8, 4, header, 2, True)
                 count = max(1, h - 18)
@@ -659,7 +710,17 @@ class UI:
                     signal = str(network.signal) if network.signal is not None else "?"
                     label = (f" {number:02d}  {network.name[:name_width]:<{name_width}}  {network.bssid} "
                              f"{str(network.channel or '?'):>3} {signal:>5} {network.security[:8]:8} {len(network.clients):3}")
-                    self.put(9 + line, 4, label.ljust(w - 9), 5 if start + line == selected else 3)
+                    self.put(9 + line, 4, label.ljust(table_width - 9), 5 if start + line == selected else 3)
+                if w >= 120 and visible:
+                    focus = visible[selected][1]
+                    x = table_width + 1
+                    self.box(7, x - 2, h - 9, w - 4)
+                    self.put(8, x, "NETWORK SNAPSHOT", 1, True)
+                    details = [focus.name, f"Channel  {focus.channel or '?'}",
+                               f"Security {focus.security}", f"WPS      {focus.wps}",
+                               f"Clients  {len(focus.clients)}", "", "ENTER opens actions"]
+                    for j, detail in enumerate(details[:max(0, h - 19)]):
+                        self.put(10 + j, x, detail[:w - x - 6], 2 if j == 0 else 3)
                 if not visible:
                     label = ("Waiting for observations…" if active else "No matches. Press / to clear the filter." if query else
                              "Scan could not complete. Press E for the error." if errors or record and record["status"] in {"error", "failed"} else

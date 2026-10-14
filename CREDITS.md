@@ -54,3 +54,6 @@ trademarks and licenses. Runtime branding does not change these attributions.
 HIFI 0.4.1 uses an original D3FAULTH/HIFI menu layout and wordmark.
 The numbered terminal, privilege guidance and selected-device recovery UI are
 HIFI additions; inherited engine provenance and notices remain unchanged.
+
+In 0.4.5, D3FAULTH replaced terminal-size queries in engine/util/color.py and
+engine/util/scanner.py with safe standard-library fallbacks for piped execution.

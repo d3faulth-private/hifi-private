@@ -190,6 +190,10 @@ class SelectedTerminalTests(unittest.TestCase):
             try:
                 wait("COMMAND CENTER"); send("\n"); wait("[Hidden]")
                 send("01\n"); wait("NETWORK ACTIONS / HIFI-LAB")
+                send("06\n"); wait("ASSESSMENT / HIFI-LAB")
+                send("01\n"); wait("NETWORK EVIDENCE"); send("\n")
+                wait("ASSESSMENT / HIFI-LAB"); send("00\n"); wait("NETWORK ACTIONS / HIFI-LAB")
+                send("07\n"); wait("NETWORK ADAPTER /"); send("00\n"); wait("NETWORK ACTIONS / HIFI-LAB")
                 send("01\n"); wait("Choose a local text wordlist"); send("\n")
                 wait("RUN SELECTED NETWORK WORKFLOW"); send("\n")
                 wait("SELECTED NETWORK RESULT"); wait("DEMO ONLY / NO RECOVERY")

@@ -97,6 +97,7 @@ class Job:
         self.directory = app.output_path("exploit")
         self.command = command_for(self.scope, network, kind, self.settings, self.directory, app.session.demo)
         self.mode = "preparing"
+        self.stage = "Preparing adapter"
 
     def readiness(self):
         require_root(self.app.session.demo)
@@ -130,6 +131,7 @@ class Job:
                 app.session.scope.interface = radio.interface
                 command = command_for(self.scope, self.network, self.kind, self.settings, self.directory, app.session.demo)
                 record["argv"] = command.argv
+                self.stage = "Executing selected workflow"
                 if app.session.demo:
                     record.update(status="simulated", output="[DEMO] Selected-network workflow preview. No radio commands or recovery performed.\n")
                     emit(record["output"])
@@ -139,6 +141,7 @@ class Job:
                     argv.insert(1, "-u")  # Stream Python progress while curses owns the terminal.
                     result = run(replace(command, argv=argv), self.directory, stop, emit)
                     record.update({k: v for k, v in result.items() if k != "argv"})
+                    self.stage = "Checking result evidence"
                     record["recovery"] = read_recovery(self.directory, self.scope.bssid, self.kind)
                     if record["status"] == "ok":
                         record["status"] = "recovered" if record["recovery"] else "no-recovery"
@@ -147,6 +150,7 @@ class Job:
         except (ValueError, OSError, RuntimeError) as exc:
             record.update(status="error", output=record["output"] + "\n" + clean(exc))
         finally:
+            self.stage = "Finalizing adapter and session"
             app.session.scope.interface = radio.interface
             record["steps"] = radio.steps
             record["adapter_restoration"] = "incomplete" if radio.restore_errors else "restored" if radio.changed else "unchanged"
