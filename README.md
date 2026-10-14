@@ -1,7 +1,7 @@
 <div align="center">
   <img src="docs/assets/banner.svg" alt="D3FAULTH / HIFI — Wireless Control" width="100%">
   <p><strong>An interactive wireless Exploit toolkit with an integrated engine.</strong></p>
-  <p>Python 3.10+ · Linux · GPL-2.0-only · 0.4.1 alpha</p>
+  <p>Python 3.10+ · Linux · GPL-2.0-only · 0.4.2 alpha</p>
 </div>
 
 **HIFI is the application.** Run `hifi` for its terminal menus, command editor,
@@ -75,7 +75,7 @@ adapter, last-read mode, session and command count.
 | --- | --- |
 | 01 | Dashboard: session scope, overview and guidance |
 | 02 | Network Adapter: selection, diagnostics, restart and recovery |
-| 03 | Network Discovery: cached networks, passive capture and inspection |
+| 03 | Network Discovery: live visible/hidden networks, client observations and selection |
 | 04 | Exploit: existing engine workflows |
 | 05 | Manual Commands: choose a profile and edit its arguments |
 | 06 | Sessions & Reports: history, notes and exports |
@@ -84,6 +84,48 @@ adapter, last-read mode, session and command count.
 
 Submenus use **00 Back**. Each main selection has a short explanation; all eight
 entries fit at 80×24. See the agreed [D3FAULTH terminal standard](docs/TERMINAL_STANDARD.md).
+
+## Hidden-network discovery
+
+Choose **02 Network Adapter → Select detected adapter**, then
+**03 Network Discovery → 01 Live scan / include hidden networks**.
+This is a live, passive scan on the selected adapter using `airodump-ng`.
+It does not read NetworkManager's old network cache.
+
+![Hidden-network discovery in HIFI, using synthetic demo observations](docs/assets/terminal-discovery.png)
+
+The table shows a stable row number, network name or **[Hidden]**, BSSID/MAC,
+channel, driver-reported RSSI, security and observed client count. Press Enter
+on a row (or type its number and Enter) to stop scanning, restore the adapter,
+save that network's BSSID/channel in the session scope and open its details.
+Details include cipher, authentication, derived frequency, timestamps, packet
+counts and observed client MACs. WPS remains **Unknown** because the CSV source
+does not report it. Signal is not falsely converted to percent or labelled dBm
+without knowing the driver's units.
+
+Hidden access points can be detected without learning their names. HIFI updates
+the same row when observed traffic reveals the SSID; a blank later observation
+does not erase an already observed name. Name recovery is not guaranteed. This
+discovery feature never sends deauthentication frames or guesses hidden names.
+
+- **S** stops the scan and keeps its observations on screen.
+- **/** filters by name, BSSID or security; **Escape** returns.
+- **03 Scan duration and bands** selects 5–3600 seconds and 2.4 GHz, 5 GHz or both.
+- **02 Latest network table** opens saved observations. It does not imply the
+  networks are still present; check each network's last-seen timestamp.
+
+Monitor mode temporarily interrupts the selected adapter's normal connection.
+HIFI records its prior mode, link state and NetworkManager ownership, then
+attempts restoration on completion, selection or cancellation. Other adapters
+and the NetworkManager service are not restarted. Recovery errors are displayed
+and recorded; after an unplug, crash or forced termination, use the adapter
+recovery menu and inspect the saved `adapter-recovery.json` in the session folder.
+This file is recovery evidence, not an automatic startup recovery script.
+
+Requires root, `iw`, `ip` and `airodump-ng`; `nmcli` is used when NetworkManager
+owns the selected device. The demo contains explicitly synthetic visible and
+hidden networks and runs no radio commands. 6 GHz discovery is not supported by
+this scan profile. Physical RTL8814AU/VMware validation remains pending.
 
 ## Restart and restore the adapter
 

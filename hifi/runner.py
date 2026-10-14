@@ -19,7 +19,7 @@ def _signal_group(proc, sig):
         pass
 
 
-def run(command, cwd, stop=None, emit=None):
+def run(command, cwd, stop=None, emit=None, tick=None):
     stop = stop or Event()
     emit = emit or (lambda text: None)
     started = time.monotonic()
@@ -37,7 +37,8 @@ def run(command, cwd, stop=None, emit=None):
     try:
         proc = subprocess.Popen(command.argv, cwd=cwd, stdin=subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                start_new_session=True, env={**os.environ, "LC_ALL": "C", "TERM": "dumb"})
+                                start_new_session=True, umask=0o077,
+                                env={**os.environ, "LC_ALL": "C", "TERM": "dumb"})
         os.set_blocking(proc.stdout.fileno(), False)
         selector.register(proc.stdout, selectors.EVENT_READ)
         reason = None
@@ -45,7 +46,9 @@ def run(command, cwd, stop=None, emit=None):
         stage = 0
         while selector.get_map() or proc.poll() is None:
             elapsed = time.monotonic() - started
-            if reason is None and (stop.is_set() or elapsed >= command.timeout):
+            if tick is not None and reason is None:
+                tick()
+            if reason is None and (stop.is_set() or (command.timeout is not None and elapsed >= command.timeout)):
                 reason = "cancelled" if stop.is_set() else "timeout"
                 _signal_group(proc, signal.SIGINT)
                 signal_at = time.monotonic()

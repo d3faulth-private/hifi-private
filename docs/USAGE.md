@@ -1,3 +1,29 @@
+# Hidden-network discovery (0.4.2)
+
+Start HIFI with root access and select the detected Wi-Fi adapter in menu **02**.
+Open **03 Network Discovery → 01 Live scan / include hidden networks**.
+The scan uses that adapter; no BSSID or channel must be entered beforehand.
+
+`[Hidden]` means an access point was observed but its SSID is not yet known.
+If ordinary traffic later reveals its name, the same row updates automatically.
+The scan does not deauthenticate clients or guess SSIDs. Passive observation
+cannot guarantee learning every hidden name.
+
+Use arrows or a row number and Enter to select. HIFI stops the scan, attempts
+adapter restoration and saves interface/BSSID/channel into the session scope.
+Network details show available security, timestamps, signal and client observations.
+Press **S** to stop while keeping the table open, **/** to filter, or Escape to
+return. The duration/bands menu offers 2.4 GHz, 5 GHz or both. Default: 30 seconds.
+The saved table is historical evidence; only the live scan refreshes it.
+
+If the scan reports a missing tool, install its named package and retry. No
+networks is an observation, not proof that no access point exists. Verify USB
+passthrough, band support and signal range. Recovery failure is recorded in
+history; inspect the adapter and use menu **02** to restore normal Wi-Fi.
+
+Discovery manages its temporary monitor mode. The older capture-only and Full
+Exploit paths retain their existing behavior, described below.
+
 # HIFI usage
 
 ## Start

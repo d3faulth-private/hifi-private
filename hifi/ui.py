@@ -3,9 +3,10 @@ import curses
 import shlex
 import textwrap
 import threading
+import time
 from collections import deque
 
-from . import __version__, access, adapters, catalog
+from . import __version__, access, adapters, catalog, discovery
 from .advisor import local_explanation, suggest, recommended_commands
 from .demo import HELP
 from .models import Scope, clean
@@ -441,18 +442,173 @@ class UI:
 
     def discovery(self):
         while True:
-            choice = self.menu("NETWORK DISCOVERY", ["View cached networks / no fresh scan", "Passive capture / existing monitor interface",
+            choice = self.menu("NETWORK DISCOVERY", ["Live scan / include hidden networks", "Latest network table / select a network",
+                               "Scan duration and bands", "Passive capture / existing monitor interface",
                                "Edit capture scope", "Inspect a capture file", "Back"])
-            if choice in (None, 4):
+            if choice in (None, 6):
                 return
             if choice == 0:
-                self.command(catalog.cached_networks())
+                self.network_table(live=True)
             elif choice == 1:
-                self.command(catalog.passive_capture(self.app.session.scope, self.app.output_path("pcapng")))
+                self.network_table()
             elif choice == 2:
+                self.discovery_options()
+            elif choice == 3:
+                self.command(catalog.passive_capture(self.app.session.scope, self.app.output_path("pcapng")))
+            elif choice == 4:
                 self.scope()
             else:
                 self.capture_inspection()
+
+    def discovery_options(self):
+        settings = self.app.session.discovery_settings
+        answer = self.prompt("Discovery window in seconds (5–3600)", settings["seconds"])
+        if answer is None:
+            return
+        seconds = int(answer)
+        if not 5 <= seconds <= 3600:
+            raise ValueError("Choose a discovery window between 5 and 3600 seconds.")
+        selected = self.menu("DISCOVERY BANDS", ["2.4 GHz and 5 GHz", "2.4 GHz", "5 GHz", "Back"])
+        if selected is None or selected == 3:
+            return
+        settings.update(seconds=seconds, band=["abg", "bg", "a"][selected])
+        self.app.store.save(self.app.session)
+
+    def network_details(self, network):
+        clients = [c for c in self.app.session.clients if c.get("bssid") == network.bssid]
+        frequency = f"{network.frequency} MHz (derived from channel)" if network.frequency else "Unknown"
+        text = (f"NETWORK      {network.name}\nBSSID / MAC  {network.bssid}\nCHANNEL      {network.channel}\n"
+                f"FREQUENCY    {frequency}\nSIGNAL       {network.signal if network.signal is not None else 'Unavailable'} (driver RSSI)\n"
+                f"SECURITY     {network.security}\nCIPHER       {network.cipher or 'Unknown'}\n"
+                f"AUTH         {network.authentication or 'Unknown'}\nWPS          {network.wps}\n"
+                f"LAST SEEN    {network.last_seen}\nBEACONS      {network.beacons}\nDATA PACKETS {network.packets}\n\n"
+                "OBSERVED CLIENTS\n" + ("\n".join(f"{c['mac']}  signal {c['signal']}  packets {c['packets']}  last {c['last_seen']}" for c in clients)
+                or "None observed in this scan.") + "\n\n"
+                "The selected interface, BSSID and channel are saved in session scope.\n"
+                "Hidden names appear only when observed traffic reveals them. No disconnects or SSID guessing are used.\n"
+                "RSSI units depend on the driver. WPS is Unknown because this CSV source does not report it.\n"
+                "Observed clients are not a complete router client list.")
+        self.view("SELECTED NETWORK / " + network.name, text)
+
+    def network_table(self, live=False):
+        session = self.app.session
+        rows = [discovery.Network(**row) for row in session.networks]
+        scan, thread, errors = None, None, []
+        selected, digits, query = 0, "", ""
+        chosen = None
+        if live:
+            access.require_root(session.demo)
+            if not session.scope.interface:
+                raise ValueError("Select a detected adapter in Network Adapter before discovery.")
+            settings = session.discovery_settings
+            scan = discovery.Scan(self.app, int(settings["seconds"]), settings["band"])
+            def worker():
+                try:
+                    scan.execute()
+                except Exception as exc:
+                    errors.append(str(exc))
+            thread = threading.Thread(target=worker, daemon=False)
+            rows = []
+            thread.start()
+        self.screen.timeout(150)
+        try:
+            while True:
+                active = bool(thread and thread.is_alive())
+                if scan:
+                    rows, _, message = scan.snapshot()
+                else:
+                    message = "Saved observations / start a live scan to refresh"
+                visible = [(i, row) for i, row in enumerate(rows, 1)
+                           if query.lower() in (row.name + " " + row.bssid + " " + row.security).lower()]
+                selected = min(selected, max(0, len(visible) - 1))
+                h, w = self.frame("LIVE NETWORKS / INCLUDING HIDDEN" if active else "NETWORKS / INCLUDING HIDDEN",
+                                  "ENTER select   S stop   / filter   ESC back")
+                if h < 20 or w < 70:
+                    self.put(7, 4, "Resize terminal to at least 70 x 20. ESC stops.", 4)
+                    self.screen.refresh()
+                    if self.screen.getch() in (27, ord("q")):
+                        break
+                    continue
+                if active and scan:
+                    self.put(h - 5, 4, f"ADAPTER  {session.scope.interface}  /  {scan.mode}  /  passive discovery", 2)
+                state = "STOPPING / RESTORING" if scan and scan.stop.is_set() and active else "SCANNING" if active else "SCAN STOPPED" if scan else "SAVED"
+                elapsed = int(time.monotonic() - scan.started) if scan else 0
+                self.put(6, 4, f"{state}  {elapsed}s   {len(rows)} networks   Filter: {query or 'all'}", 2)
+                name_width = max(8, min(28, w - 65))
+                header = f" NO  {'NETWORK':<{name_width}}  BSSID / MAC        CH  RSSI SECURITY  CLI"
+                self.put(8, 4, header, 2, True)
+                count = max(1, h - 18)
+                start = max(0, selected - count + 1)
+                for line, (number, network) in enumerate(visible[start:start + count]):
+                    signal = str(network.signal) if network.signal is not None else "?"
+                    label = (f" {number:02d}  {network.name[:name_width]:<{name_width}}  {network.bssid} "
+                             f"{network.channel:3} {signal:>5} {network.security[:8]:8} {len(network.clients):3}")
+                    self.put(9 + line, 4, label.ljust(w - 9), 5 if start + line == selected else 3)
+                if not visible:
+                    self.put(10, 4, "Waiting for observations…" if active else "No matching networks observed.", 4)
+                if digits:
+                    message = "NETWORK NUMBER: " + digits + " / Enter selects"
+                elif errors:
+                    message = errors[0]
+                elif scan and scan.record and scan.record["status"] == "error":
+                    message = "Scan error / press E for details"
+                self.put(h - 8, 4, message, 4)
+                self.put(h - 7, 4, "Signal: driver RSSI | Hidden names require revealing traffic", 2)
+                self.screen.refresh()
+                key = self.screen.getch()
+                if key in (27, ord("q")):
+                    break
+                if key in (ord("s"), ord("S")) and scan:
+                    scan.stop.set()
+                elif key in (curses.KEY_DOWN, ord("j")) and visible:
+                    selected = (selected + 1) % len(visible)
+                    digits = ""
+                elif key in (curses.KEY_UP, ord("k")) and visible:
+                    selected = (selected - 1) % len(visible)
+                    digits = ""
+                elif ord("0") <= key <= ord("9"):
+                    digits = (digits + chr(key))[-4:]
+                elif key in (curses.KEY_BACKSPACE, 127, 8):
+                    digits = digits[:-1]
+                elif key in (10, 13, curses.KEY_ENTER) and visible:
+                    if digits:
+                        entry = next((row for number, row in visible if number == int(digits)), None)
+                        if entry is None:
+                            digits = ""
+                            continue
+                        chosen = entry
+                    else:
+                        chosen = visible[selected][1]
+                    break
+                elif key == ord("/"):
+                    self.screen.timeout(-1)
+                    value = self.prompt("Filter by network name, BSSID or security", query)
+                    if value is not None:
+                        query, selected = value, 0
+                    self.screen.timeout(150)
+                elif key in (ord("e"), ord("E")) and not active:
+                    self.screen.timeout(-1)
+                    self.view("DISCOVERY DETAILS", "\n".join(errors) or (scan.record["output"] if scan and scan.record else message))
+                    self.screen.timeout(150)
+        finally:
+            if scan:
+                scan.stop.set()
+            while thread and thread.is_alive():
+                self.frame("STOPPING DISCOVERY / RESTORING ADAPTER", "Waiting for adapter recovery")
+                self.put(8, 4, scan.message, 4)
+                self.screen.refresh()
+                thread.join(timeout=0.1)
+            self.screen.timeout(-1)
+            self.refresh_adapters()
+        if chosen:
+            if scan:
+                chosen = next((row for row in scan.snapshot()[0] if row.bssid == chosen.bssid), chosen)
+            discovery.select(self.app, chosen)
+            self.network_details(chosen)
+        elif errors:
+            self.view("DISCOVERY COULD NOT START", "\n".join(errors))
+        elif scan and scan.record and scan.record["status"] == "error":
+            self.view("DISCOVERY ERROR", scan.record["output"])
 
     def manual_commands(self):
         while True:
@@ -525,7 +681,7 @@ class UI:
         entries = ["Dashboard", "Network Adapter", "Network Discovery", "Exploit", "Manual Commands",
                    "Sessions & Reports", "Settings & Help", "Exit"]
         descriptions = ["Session overview, scope and evidence-based next steps.", "Select, inspect, restart or restore a wireless adapter.",
-                        "Cached networks, passive capture and capture inspection.", "Existing engine workflows and editable options.",
+                        "Live discovery, hidden networks, client details and selection.", "Existing engine workflows and editable options.",
                         "Choose a command profile, edit its arguments and preview.", "Review history, add notes and export saved evidence.",
                         "Dependencies, navigation, CLI reference and project details.", "Save the session and return to your shell."]
         actions = [self.dashboard, self.adapter_controls, self.discovery, self.engine,

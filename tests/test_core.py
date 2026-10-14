@@ -160,7 +160,9 @@ class RunnerTests(unittest.TestCase):
 
     def test_timeout_reaps_process_group(self):
         script = "import subprocess,sys,time; p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(60)']); print(p.pid,flush=True); time.sleep(60)"
-        r = run(self.command(script, timeout=0.2), self.tmp.name)
+        # Allow the child to start its descendant on loaded CI runners before
+        # timing out; otherwise this checks interpreter startup, not cleanup.
+        r = run(self.command(script, timeout=2), self.tmp.name)
         self.assertEqual(r["status"], "timeout")
         pid = int(r["output"].splitlines()[0])
         stat = Path(f"/proc/{pid}/stat")

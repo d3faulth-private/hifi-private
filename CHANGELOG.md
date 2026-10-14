@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.2 — passive hidden-network discovery
+
+- Replace the Discovery menu's cached-network entry with a real selected-adapter scan.
+- Show hidden access points, stable row numbers, BSSID, channel, raw signal, security and observed clients.
+- Update a hidden name only when observed traffic reveals it; retain last-seen timestamps and detailed network/client views.
+- Select a network directly to fill session BSSID/channel; add filtering, Stop, saved observations and scan band/time settings.
+- Prepare temporary monitor mode and restore the previous selected-adapter state; report incomplete recovery and prevent competing HIFI scans on the same phy.
+- Keep discovery observations out of summary exports; retain them in explicit full exports.
+- Limit this update to discovery. The broader controller redesign, Bluetooth, MITM and jamming additions are not included. The existing engine is unchanged.
+- Software fixtures and terminal checks do not constitute physical radio validation.
+
 ## 0.4.1 — compact terminal workflow
 
 - Group the existing features into seven main sections and a visible `00 Exit`.

@@ -15,6 +15,9 @@ def report_data(session, include_sensitive=False):
         data["notes"] = ["Notes omitted. Use a full private export to include notes and raw output."]
         data["engine_args"] = []
         data["engine_workdir"] = "[omitted]"
+        data["networks"] = []
+        data["clients"] = []
+        data["selected_network"] = {}
         data["records"] = [{k: v for k, v in r.items() if k not in {"argv", "output", "cwd", "steps"}}
                            for r in data["records"]]
     return data
