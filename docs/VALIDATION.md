@@ -3,6 +3,10 @@
 The software suite currently contains **70 tests**, using synthetic data, mocks
 and real local subprocesses. No case targets a wireless network.
 
+Install the development dependencies with `python -m pip install '.[test]'`,
+then run `python -m unittest discover -s tests -v`. The discovery terminal check
+uses a VT screen model so curses' incremental redraws are interpreted correctly.
+
 Coverage includes:
 
 - Hidden AP detection, later observed-name updates, comma-containing names, unknown signal, partial CSV rows, client association and stable discovery ordering.

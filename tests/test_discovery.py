@@ -205,6 +205,7 @@ class RadioRecoveryTests(unittest.TestCase):
 
 class DiscoveryTerminalTests(unittest.TestCase):
     def test_hidden_row_selection_stays_in_hifi_and_saves_scope(self):
+        import pyte
         with tempfile.TemporaryDirectory() as directory:
             master, slave = pty.openpty()
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
@@ -214,8 +215,9 @@ class DiscoveryTerminalTests(unittest.TestCase):
                                     cwd=Path(__file__).resolve().parents[1])
             os.close(slave)
             output = bytearray()
+            screen = pyte.Screen(100, 24)
+            stream = pyte.ByteStream(screen)
             def wait(text):
-                recent = bytearray()
                 deadline = time.monotonic() + 6
                 while time.monotonic() < deadline:
                     ready, _, _ = io_select.select([master], [], [], .1)
@@ -225,10 +227,10 @@ class DiscoveryTerminalTests(unittest.TestCase):
                         except OSError:
                             break
                         output.extend(data)
-                        recent.extend(data)
-                        if text.encode() in recent:
-                            return
-                self.fail(f"Missing {text}: {bytes(output)[-2000:]!r}")
+                        stream.feed(data)
+                    if text in "\n".join(screen.display):
+                        return
+                self.fail(f"Missing {text} in rendered screen:\n" + "\n".join(screen.display))
             try:
                 wait("COMMAND CENTER")
                 os.write(master, b"03\n")
